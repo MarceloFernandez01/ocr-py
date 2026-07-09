@@ -4,9 +4,17 @@ from tkinter import filedialog
 
 from PIL import Image, ImageTk
 
+from model.ocr_model import transcribe
+from model.tesseract_locator import resolve_tesseract_path
 from view.main_view import MainView
 
 PREVIEW_MAX_SIZE = (400, 300)
+
+LANGUAGE_MAP = {
+    "Español": "spa",
+    "Inglés": "eng",
+    "Ambos": "spa+eng",
+}
 
 
 class AppState:
@@ -27,6 +35,7 @@ class OcrController:
         self.state = AppState()
 
         self.view.open_button.configure(command=self.on_open_image)
+        self.view.transcribe_button.configure(command=self.on_transcribe)
 
     def on_open_image(self) -> None:
         """Abre un diálogo de selección de archivo, carga la imagen y actualiza la vista previa."""
@@ -41,3 +50,12 @@ class OcrController:
         self.view.set_preview_image(photo_image)
         self.state.image_path = path
         self.view.enable_transcribe_button()
+
+    def on_transcribe(self) -> None:
+        """Transcribe la imagen cargada usando el idioma seleccionado en la vista."""
+        self.state.selected_language = self.view.get_selected_language()
+        language_code = LANGUAGE_MAP[self.state.selected_language]
+        tesseract_path = resolve_tesseract_path()
+
+        result = transcribe(self.state.image_path, language_code, tesseract_path)
+        self.view.set_result_text(result)
