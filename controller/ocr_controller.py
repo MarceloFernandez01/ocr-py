@@ -1,9 +1,11 @@
 """Conecta los eventos de la vista con la lógica del Model."""
 
+import os
 from tkinter import filedialog
 
 from PIL import Image, ImageTk
 
+from model.config_model import save_tesseract_path
 from model.ocr_model import transcribe
 from model.tesseract_locator import resolve_tesseract_path
 from view.main_view import MainView
@@ -57,5 +59,22 @@ class OcrController:
         language_code = LANGUAGE_MAP[self.state.selected_language]
         tesseract_path = resolve_tesseract_path()
 
+        if tesseract_path is None:
+            tesseract_path = self._prompt_tesseract_path()
+            if tesseract_path is None:
+                return
+
         result = transcribe(self.state.image_path, language_code, tesseract_path)
         self.view.set_result_text(result)
+
+    def _prompt_tesseract_path(self) -> str | None:
+        """Pide al usuario la ruta del ejecutable de Tesseract y la persiste si es válida."""
+        path = filedialog.askopenfilename(
+            title="Ubicar tesseract.exe",
+            filetypes=[("Ejecutables", "*.exe")],
+        )
+        if not path or not os.path.exists(path):
+            return None
+
+        save_tesseract_path(path)
+        return path
