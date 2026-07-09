@@ -1,6 +1,6 @@
 # SPEC 01 — MVP de aplicativo de escritorio OCR
 
-> **Status:** Draft
+> **Status:** Aprobado
 > **Depends on:** (ninguna)
 > **Date:** 2026-07-09
 > **Objective:** Construir una app de escritorio en Python (Tkinter + patrón MVC) que permita cargar una imagen en cualquier formato, elegir idioma (español, inglés o ambos) y transcribir su texto usando Tesseract OCR, mostrando la imagen y el texto reconocido en la misma ventana.

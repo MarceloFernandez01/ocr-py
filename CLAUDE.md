@@ -14,6 +14,7 @@ Restricciones del proyecto (definidas en `readme.md`) y decisiones técnicas cer
 - **Motor OCR: Tesseract vía `pytesseract`.** El usuario debe instalar Tesseract-OCR manualmente en el sistema (no se instala vía pip ni se instala automáticamente desde la app). La app detecta la ruta por PATH; si no la encuentra, pide la ruta manualmente y la persiste en `config.json`.
 - **Selector de idioma con 3 opciones fijas:** Español (`spa`), Inglés (`eng`), Ambos (`spa+eng`). Idiomas adicionales quedan para specs futuras.
 - **Fuera de alcance del MVP:** OCR en vivo/captura de pantalla, guardado del texto a archivo o historial entre sesiones, instalación automática de Tesseract, motor ICR o pre-procesamiento de imagen.
+- **El código debe estar documentado.** Cada módulo, clase y función pública lleva un docstring explicando su propósito (qué hace, parámetros y valor de retorno cuando no sean obvios). Esto tiene prioridad sobre la preferencia global de evitar comentarios/documentación innecesaria.
 
 Este repositorio está en etapa inicial: aún no existe código fuente (solo la spec). No inventes comandos de build/lint/test — verifica primero si ya fueron agregados (`ls`, buscar `pyproject.toml`/`requirements.txt`/`Makefile`) antes de asumir que existen.
 
