@@ -14,7 +14,7 @@ La interfaz gráfica sí forma parte del MVP (ver `specs/01-mvp-ocr-tesseract-tk
 ## Stack técnico (definido en la spec del MVP)
 
 - **GUI:** Tkinter (librería estándar de Python).
-- **OCR:** Tesseract, vía `pytesseract`. Requiere que el usuario instale Tesseract-OCR manualmente en el sistema.
+- **OCR:** Tesseract, vía `pytesseract`. Requiere que el usuario instale Tesseract-OCR manualmente en el sistema ([instalador para Windows](https://github.com/UB-Mannheim/tesseract/wiki)).
 - **Imágenes:** Pillow, para poder cargar y previsualizar cualquier formato de imagen.
 
 Detalle completo del alcance, plan de implementación y decisiones en `specs/01-mvp-ocr-tesseract-tkinter.md`.
