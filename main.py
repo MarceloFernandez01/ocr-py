@@ -2,11 +2,14 @@
 
 import tkinter as tk
 
+from view.main_view import MainView
+
 
 def main() -> None:
     """Crea y ejecuta la ventana principal de la aplicación."""
     root = tk.Tk()
     root.title("OCR")
+    MainView(root)
     root.mainloop()
 
 
