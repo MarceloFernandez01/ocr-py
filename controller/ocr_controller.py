@@ -1,7 +1,7 @@
 """Conecta los eventos de la vista con la lógica del Model."""
 
 import os
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 
 from PIL import Image, ImageTk
 
@@ -45,9 +45,13 @@ class OcrController:
         if not path:
             return
 
-        image = Image.open(path)
-        image.thumbnail(PREVIEW_MAX_SIZE)
-        photo_image = ImageTk.PhotoImage(image)
+        try:
+            image = Image.open(path)
+            image.thumbnail(PREVIEW_MAX_SIZE)
+            photo_image = ImageTk.PhotoImage(image)
+        except Exception as error:
+            messagebox.showerror("Error al cargar la imagen", str(error))
+            return
 
         self.view.set_preview_image(photo_image)
         self.state.image_path = path
@@ -64,7 +68,12 @@ class OcrController:
             if tesseract_path is None:
                 return
 
-        result = transcribe(self.state.image_path, language_code, tesseract_path)
+        try:
+            result = transcribe(self.state.image_path, language_code, tesseract_path)
+        except Exception as error:
+            messagebox.showerror("Error al transcribir", str(error))
+            return
+
         self.view.set_result_text(result)
 
     def _prompt_tesseract_path(self) -> str | None:
