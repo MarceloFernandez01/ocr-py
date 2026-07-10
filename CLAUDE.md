@@ -16,7 +16,20 @@ Restricciones del proyecto (definidas en `readme.md`) y decisiones técnicas cer
 - **Fuera de alcance del MVP:** OCR en vivo/captura de pantalla, guardado del texto a archivo o historial entre sesiones, instalación automática de Tesseract, motor ICR o pre-procesamiento de imagen.
 - **El código debe estar documentado.** Cada módulo, clase y función pública lleva un docstring explicando su propósito (qué hace, parámetros y valor de retorno cuando no sean obvios). Esto tiene prioridad sobre la preferencia global de evitar comentarios/documentación innecesaria.
 
-Este repositorio está en etapa inicial: aún no existe código fuente (solo la spec). No inventes comandos de build/lint/test — verifica primero si ya fueron agregados (`ls`, buscar `pyproject.toml`/`requirements.txt`/`Makefile`) antes de asumir que existen.
+El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado. Estructura actual del código:
+
+- `main.py` — punto de entrada; instancia `MainView` y `OcrController` y arranca el loop de Tkinter.
+- `model/config_model.py` — `load_config()` / `save_tesseract_path()`, lee/escribe `config.json`.
+- `model/tesseract_locator.py` — `resolve_tesseract_path()`, detecta Tesseract por PATH o por `config.json`.
+- `model/ocr_model.py` — `transcribe(image_path, language_code, tesseract_path)`, envuelve `pytesseract`.
+- `view/main_view.py` — `MainView`, todos los widgets Tkinter y sus setters/getters.
+- `controller/ocr_controller.py` — `OcrController` y `AppState`, conecta los botones de la vista con el Model, incluye manejo de errores (imagen inválida, Tesseract no encontrado, fallo de transcripción).
+- `requirements.txt` — `pytesseract`, `Pillow`.
+- `config.json` — generado en runtime (no versionado, está en `.gitignore`), solo cuando el usuario configura una ruta manual de Tesseract.
+
+No hay comandos de build/lint/test configurados en el repo (no hay `pyproject.toml` ni `Makefile`). Para correr la app: `python main.py`. Antes de asumir que existe un comando de test o lint, verificar con `ls`.
+
+Limitación conocida (no resuelta, candidata a spec futura): la transcripción no maneja bien imágenes muy grandes.
 
 ## Flujo de trabajo: specs
 
@@ -35,4 +48,4 @@ Cuando se implemente una feature de este proyecto, sigue este flujo en vez de es
 
 **Specs existentes:**
 
-- `specs/01-mvp-ocr-tesseract-tkinter.md` (`Draft`) — MVP de la app de escritorio OCR descrita arriba.
+- `specs/01-mvp-ocr-tesseract-tkinter.md` (`Implementado`) — MVP de la app de escritorio OCR descrita arriba.
