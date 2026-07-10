@@ -8,7 +8,7 @@ from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 
 from model.config_model import save_tesseract_path
-from model.ocr_model import transcribe
+from model.ocr_model import transcribe_large_image
 from model.tesseract_locator import resolve_tesseract_path
 from view.main_view import MainView
 
@@ -29,6 +29,7 @@ class AppState:
         self.image_path: str | None = None
         self.selected_language: str = "Ambos"
         self.tesseract_ready: bool = False
+        self.transcription_in_progress: bool = False
 
 
 class OcrController:
@@ -62,6 +63,9 @@ class OcrController:
 
     def on_transcribe(self) -> None:
         """Transcribe la imagen cargada usando el idioma seleccionado en la vista."""
+        if self.state.transcription_in_progress:
+            return
+
         self.state.selected_language = self.view.get_selected_language()
         language_code = LANGUAGE_MAP[self.state.selected_language]
         tesseract_path = resolve_tesseract_path()
@@ -75,6 +79,7 @@ class OcrController:
 
     def _start_transcription(self, language_code: str, tesseract_path: str | None) -> None:
         """Lanza la transcripción en un hilo aparte y arranca el contador de segundos en vivo."""
+        self.state.transcription_in_progress = True
         self.view.disable_transcribe_button()
         self._transcription_result: str | None = None
         self._transcription_error: Exception | None = None
@@ -91,7 +96,7 @@ class OcrController:
     def _run_transcription(self, language_code: str, tesseract_path: str | None) -> None:
         """Corre en el hilo secundario: transcribe y guarda el resultado o el error."""
         try:
-            self._transcription_result = transcribe(self.state.image_path, language_code, tesseract_path)
+            self._transcription_result = transcribe_large_image(self.state.image_path, language_code, tesseract_path)
         except Exception as error:
             self._transcription_error = error
 
@@ -108,6 +113,7 @@ class OcrController:
         else:
             self.view.set_result_text(self._transcription_result)
 
+        self.state.transcription_in_progress = False
         self.view.enable_transcribe_button()
 
     def _prompt_tesseract_path(self) -> str | None:
