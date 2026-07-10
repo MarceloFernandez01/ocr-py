@@ -1,6 +1,6 @@
 # SPEC 01 — MVP de aplicativo de escritorio OCR
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** (ninguna)
 > **Date:** 2026-07-09
 > **Objective:** Construir una app de escritorio en Python (Tkinter + patrón MVC) que permita cargar una imagen en cualquier formato, elegir idioma (español, inglés o ambos) y transcribir su texto usando Tesseract OCR, mostrando la imagen y el texto reconocido en la misma ventana.
@@ -96,21 +96,21 @@ class AppState:
 
 ## Acceptance criteria
 
-- [ ] La app abre una ventana Tkinter sin errores al ejecutar `python main.py`.
-- [ ] El botón "Abrir imagen" permite seleccionar un archivo de imagen en cualquier formato soportado por Pillow (JPEG, PNG, BMP, TIFF, WEBP, GIF, etc.).
-- [ ] Al cargar una imagen válida, se muestra su vista previa dentro de la ventana.
-- [ ] El botón "Transcribir" está deshabilitado hasta que haya una imagen cargada.
-- [ ] El selector de idioma ofrece exactamente tres opciones: "Español", "Inglés" y "Ambos", con "Ambos" como valor por defecto.
-- [ ] Al presionar "Transcribir" con idioma "Español", el texto reconocido usa el modelo `spa`.
-- [ ] Al presionar "Transcribir" con idioma "Inglés", el texto reconocido usa el modelo `eng`.
-- [ ] Al presionar "Transcribir" con idioma "Ambos", el texto reconocido usa el modelo combinado `spa+eng`.
-- [ ] El resultado de la transcripción se muestra en un bloque de texto de solo lectura dentro de la misma ventana.
-- [ ] Si Tesseract está instalado y en el PATH del sistema, la transcripción funciona sin pedir configuración adicional.
-- [ ] Si Tesseract no está en el PATH, la app pide al usuario la ruta del ejecutable mediante un diálogo de selección de archivo.
-- [ ] La ruta de Tesseract indicada manualmente se guarda en `config.json` y se reutiliza en la siguiente ejecución de la app, sin volver a pedirla (mientras el archivo siga existiendo en esa ruta).
-- [ ] Si se intenta cargar un archivo que no es una imagen válida, la app muestra un mensaje de error controlado sin cerrarse ni crashear.
-- [ ] Si la transcripción falla (ej. Tesseract no puede procesar la imagen), la app muestra un mensaje de error controlado sin cerrarse ni crashear.
-- [ ] El código está organizado siguiendo el patrón MVC: `model/`, `view/` y `controller/` con responsabilidades separadas (el Model no importa Tkinter, la View no llama a `pytesseract` directamente).
+- [x] La app abre una ventana Tkinter sin errores al ejecutar `python main.py`.
+- [x] El botón "Abrir imagen" permite seleccionar un archivo de imagen en cualquier formato soportado por Pillow (JPEG, PNG, BMP, TIFF, WEBP, GIF, etc.).
+- [x] Al cargar una imagen válida, se muestra su vista previa dentro de la ventana.
+- [x] El botón "Transcribir" está deshabilitado hasta que haya una imagen cargada.
+- [x] El selector de idioma ofrece exactamente tres opciones: "Español", "Inglés" y "Ambos", con "Ambos" como valor por defecto.
+- [x] Al presionar "Transcribir" con idioma "Español", el texto reconocido usa el modelo `spa`.
+- [x] Al presionar "Transcribir" con idioma "Inglés", el texto reconocido usa el modelo `eng`.
+- [x] Al presionar "Transcribir" con idioma "Ambos", el texto reconocido usa el modelo combinado `spa+eng`.
+- [x] El resultado de la transcripción se muestra en un bloque de texto de solo lectura dentro de la misma ventana.
+- [x] Si Tesseract está instalado y en el PATH del sistema, la transcripción funciona sin pedir configuración adicional.
+- [x] Si Tesseract no está en el PATH, la app pide al usuario la ruta del ejecutable mediante un diálogo de selección de archivo.
+- [x] La ruta de Tesseract indicada manualmente se guarda en `config.json` y se reutiliza en la siguiente ejecución de la app, sin volver a pedirla (mientras el archivo siga existiendo en esa ruta).
+- [x] Si se intenta cargar un archivo que no es una imagen válida, la app muestra un mensaje de error controlado sin cerrarse ni crashear.
+- [x] Si la transcripción falla (ej. Tesseract no puede procesar la imagen), la app muestra un mensaje de error controlado sin cerrarse ni crashear.
+- [x] El código está organizado siguiendo el patrón MVC: `model/`, `view/` y `controller/` con responsabilidades separadas (el Model no importa Tkinter, la View no llama a `pytesseract` directamente).
 
 ## Decisions
 
