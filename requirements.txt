@@ -1,2 +1,4 @@
 pytesseract
 Pillow
+numpy
+opencv-python

@@ -8,7 +8,7 @@ MVP de un aplicativo de escritorio en Python para OCR (Optical Character Recogni
 
 Restricciones del proyecto (definidas en `readme.md`) y decisiones técnicas cerradas en `specs/01-mvp-ocr-tesseract-tkinter.md`:
 
-- **Evitar módulos externos salvo que sea estrictamente necesario.** Las únicas dos dependencias externas aprobadas para el MVP son `pytesseract` (motor OCR) y `Pillow` (decodificación de imágenes en cualquier formato para la vista previa en GUI). No agregar otras sin pasar antes por una spec.
+- **Evitar módulos externos salvo que sea estrictamente necesario.** Las dependencias externas aprobadas son `pytesseract` (motor OCR), `Pillow` (decodificación de imágenes en cualquier formato para la vista previa en GUI), `numpy` y `opencv-python` (preprocesamiento de imagen para OCR sobre fondos complejos, ver `specs/03-preprocesamiento-ocr.md`). No agregar otras sin pasar antes por una spec.
 - **Respetar el patrón MVC** (Modelo-Vista-Controlador) en la organización del código: `model/` (lógica de OCR y config, sin importar Tkinter), `view/` (ventana y widgets Tkinter, sin llamar a `pytesseract` directamente), `controller/` (conecta eventos de la vista con el modelo).
 - **GUI sí está en alcance** (Tkinter, de la librería estándar), pero **sin diseño pulido ni estilo "metro"** por ahora — interfaz puramente funcional.
 - **Motor OCR: Tesseract vía `pytesseract`.** El usuario debe instalar Tesseract-OCR manualmente en el sistema (no se instala vía pip ni se instala automáticamente desde la app). La app detecta la ruta por PATH; si no la encuentra, pide la ruta manualmente y la persiste en `config.json`.
@@ -24,7 +24,7 @@ El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado
 - `model/ocr_model.py` — `transcribe(image_path, language_code, tesseract_path)`, envuelve `pytesseract`.
 - `view/main_view.py` — `MainView`, todos los widgets Tkinter y sus setters/getters.
 - `controller/ocr_controller.py` — `OcrController` y `AppState`, conecta los botones de la vista con el Model, incluye manejo de errores (imagen inválida, Tesseract no encontrado, fallo de transcripción).
-- `requirements.txt` — `pytesseract`, `Pillow`.
+- `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`.
 - `config.json` — generado en runtime (no versionado, está en `.gitignore`), solo cuando el usuario configura una ruta manual de Tesseract.
 
 No hay comandos de build/lint/test configurados en el repo (no hay `pyproject.toml` ni `Makefile`). Para correr la app: `python main.py`. Antes de asumir que existe un comando de test o lint, verificar con `ls`.

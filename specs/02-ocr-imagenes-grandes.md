@@ -1,6 +1,6 @@
 # SPEC 02 — Reconocimiento de imágenes grandes / relación de aspecto extrema
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** `specs/01-mvp-ocr-tesseract-tkinter.md`
 > **Date:** 2026-07-09
 > **Objective:** Hacer que la transcripción reconozca correctamente el texto de imágenes grandes o con relación de aspecto extrema (capturas, infografías), aplicando downscale y división en tiles antes de pasarlas a Tesseract, sin congelar la UI mientras procesa.
@@ -71,16 +71,16 @@ Se agrega un flag de estado a `AppState` (o se maneja localmente en el Controlle
 
 ## Acceptance criteria
 
-- [ ] Si una imagen tiene el lado mayor por debajo de 3000px, la transcripción funciona igual que antes (sin downscale ni tiling), con resultado idéntico al comportamiento actual.
-- [ ] Si una imagen supera 3000px en su lado mayor, se le aplica downscale proporcional antes de pasarla a Tesseract, sin alterar la imagen mostrada en la vista previa.
-- [ ] Si tras el downscale la imagen sigue necesitando partirse por su relación de aspecto, se divide en una grilla dinámica de hasta 3x3 tiles con solapamiento entre ellos.
-- [ ] El texto transcrito de cada tile se concatena en orden con salto de línea, sin intentar deduplicar el contenido solapado.
-- [ ] Al presionar "Transcribir", el botón se deshabilita inmediatamente y no puede dispararse una segunda transcripción en paralelo mientras la primera está en curso.
-- [ ] Mientras la transcripción está en curso, el área de resultado muestra `Procesando... Ns`, con `N` incrementándose visiblemente cada ~200ms.
-- [ ] La ventana de Tkinter sigue respondiendo (se puede mover/redimensionar) mientras la transcripción está en curso, incluso con imágenes grandes.
-- [ ] Al terminar la transcripción (éxito o error), el contador se detiene, se muestra el resultado final (o el mensaje de error) y el botón "Transcribir" se reactiva.
-- [ ] El flujo de "Tesseract no encontrado" (pedir ruta manual) sigue funcionando igual que en la spec 01, ahora también con threading, contador y tiling aplicados al reintento.
-- [ ] El código nuevo respeta MVC: `model/image_tiling.py` no importa Tkinter; el threading y la actualización de UI viven en el Controller.
+- [X] Si una imagen tiene el lado mayor por debajo de 3000px, la transcripción funciona igual que antes (sin downscale ni tiling), con resultado idéntico al comportamiento actual.
+- [X] Si una imagen supera 3000px en su lado mayor, se le aplica downscale proporcional antes de pasarla a Tesseract, sin alterar la imagen mostrada en la vista previa.
+- [X] Si tras el downscale la imagen sigue necesitando partirse por su relación de aspecto, se divide en una grilla dinámica de hasta 3x3 tiles con solapamiento entre ellos.
+- [X] El texto transcrito de cada tile se concatena en orden con salto de línea, sin intentar deduplicar el contenido solapado.
+- [X] Al presionar "Transcribir", el botón se deshabilita inmediatamente y no puede dispararse una segunda transcripción en paralelo mientras la primera está en curso.
+- [X] Mientras la transcripción está en curso, el área de resultado muestra `Procesando... Ns`, con `N` incrementándose visiblemente cada ~200ms.
+- [X] La ventana de Tkinter sigue respondiendo (se puede mover/redimensionar) mientras la transcripción está en curso, incluso con imágenes grandes.
+- [X] Al terminar la transcripción (éxito o error), el contador se detiene, se muestra el resultado final (o el mensaje de error) y el botón "Transcribir" se reactiva.
+- [X] El flujo de "Tesseract no encontrado" (pedir ruta manual) sigue funcionando igual que en la spec 01, ahora también con threading, contador y tiling aplicados al reintento.
+- [X] El código nuevo respeta MVC: `model/image_tiling.py` no importa Tkinter; el threading y la actualización de UI viven en el Controller.
 
 ## Decisions
 
