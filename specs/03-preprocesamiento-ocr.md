@@ -1,6 +1,6 @@
 # SPEC 03 — Preprocesamiento de imagen para OCR de texto sobre fondos complejos
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** `specs/02-ocr-imagenes-grandes.md`
 > **Date:** 2026-07-10
 > **Objective:** Lograr que la app transcriba texto estilizado sobre fondos de color o
