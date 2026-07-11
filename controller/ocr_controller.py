@@ -1,16 +1,19 @@
 """Conecta los eventos de la vista con la lógica del Model."""
 
 import os
+import threading
+import time
 from tkinter import filedialog, messagebox
 
 from PIL import Image, ImageTk
 
 from model.config_model import save_tesseract_path
-from model.ocr_model import transcribe
+from model.ocr_model import transcribe_large_image
 from model.tesseract_locator import resolve_tesseract_path
 from view.main_view import MainView
 
 PREVIEW_MAX_SIZE = (400, 300)
+COUNTER_INTERVAL_MS = 200
 
 LANGUAGE_MAP = {
     "Español": "spa",
@@ -26,6 +29,7 @@ class AppState:
         self.image_path: str | None = None
         self.selected_language: str = "Ambos"
         self.tesseract_ready: bool = False
+        self.transcription_in_progress: bool = False
 
 
 class OcrController:
@@ -59,6 +63,9 @@ class OcrController:
 
     def on_transcribe(self) -> None:
         """Transcribe la imagen cargada usando el idioma seleccionado en la vista."""
+        if self.state.transcription_in_progress:
+            return
+
         self.state.selected_language = self.view.get_selected_language()
         language_code = LANGUAGE_MAP[self.state.selected_language]
         tesseract_path = resolve_tesseract_path()
@@ -68,13 +75,46 @@ class OcrController:
             if tesseract_path is None:
                 return
 
+        self._start_transcription(language_code, tesseract_path)
+
+    def _start_transcription(self, language_code: str, tesseract_path: str | None) -> None:
+        """Lanza la transcripción en un hilo aparte y arranca el contador de segundos en vivo."""
+        self.state.transcription_in_progress = True
+        self.view.disable_transcribe_button()
+        self._transcription_result: str | None = None
+        self._transcription_error: Exception | None = None
+        self._transcription_start = time.monotonic()
+
+        thread = threading.Thread(
+            target=self._run_transcription,
+            args=(language_code, tesseract_path),
+            daemon=True,
+        )
+        thread.start()
+        self._poll_transcription(thread)
+
+    def _run_transcription(self, language_code: str, tesseract_path: str | None) -> None:
+        """Corre en el hilo secundario: transcribe y guarda el resultado o el error."""
         try:
-            result = transcribe(self.state.image_path, language_code, tesseract_path)
+            self._transcription_result = transcribe_large_image(self.state.image_path, language_code, tesseract_path)
         except Exception as error:
-            messagebox.showerror("Error al transcribir", str(error))
+            self._transcription_error = error
+
+    def _poll_transcription(self, thread: threading.Thread) -> None:
+        """Actualiza el contador de segundos cada `COUNTER_INTERVAL_MS` mientras el hilo sigue vivo."""
+        if thread.is_alive():
+            elapsed = int(time.monotonic() - self._transcription_start)
+            self.view.set_result_text(f"Procesando... {elapsed}s")
+            self.view.root.after(COUNTER_INTERVAL_MS, lambda: self._poll_transcription(thread))
             return
 
-        self.view.set_result_text(result)
+        if self._transcription_error is not None:
+            messagebox.showerror("Error al transcribir", str(self._transcription_error))
+        else:
+            self.view.set_result_text(self._transcription_result)
+
+        self.state.transcription_in_progress = False
+        self.view.enable_transcribe_button()
 
     def _prompt_tesseract_path(self) -> str | None:
         """Pide al usuario la ruta del ejecutable de Tesseract y la persiste si es válida."""
