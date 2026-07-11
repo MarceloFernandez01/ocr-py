@@ -1,7 +1,10 @@
 """Transcripción de texto en imágenes mediante Tesseract OCR."""
 
 import pytesseract
+from PIL import Image
+from pytesseract import Output
 
+from model.image_preprocessing import generate_variants
 from model.image_tiling import prepare_tiles
 
 
@@ -39,5 +42,32 @@ def transcribe_large_image(image_path: str, language_code: str, tesseract_path: 
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
     tiles = prepare_tiles(image_path)
-    texts = [pytesseract.image_to_string(tile, lang=language_code) for tile in tiles]
+    texts = [_transcribe_best_variant(tile, language_code) for tile in tiles]
     return "\n".join(texts)
+
+
+def _transcribe_best_variant(tile: Image.Image, language_code: str) -> str:
+    """Transcribe todas las variantes preprocesadas de `tile`, puntúa cada una por
+    confianza media de palabra (`conf >= 0`, texto no vacío) y devuelve el texto de
+    la de mayor confianza; empate o todas vacías → gana la variante `original`.
+    """
+    variants = generate_variants(tile)
+    best_variant = variants[0][1]  # original, por si todas las variantes empatan o quedan vacías
+    best_confidence = -1.0
+
+    for _, variant in variants:
+        data = pytesseract.image_to_data(variant, lang=language_code, output_type=Output.DICT)
+        confidences = [
+            float(conf)
+            for conf, text in zip(data["conf"], data["text"])
+            if float(conf) >= 0 and text.strip()
+        ]
+        if not confidences:
+            continue
+
+        confidence = sum(confidences) / len(confidences)
+        if confidence > best_confidence:
+            best_confidence = confidence
+            best_variant = variant
+
+    return pytesseract.image_to_string(best_variant, lang=language_code)
