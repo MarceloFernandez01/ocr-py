@@ -1,0 +1,69 @@
+IDEA: OCR con Claude (modelo Haiku) como alternativa/complemento a Tesseract
+============================================================================
+
+Contexto
+--------
+Este proyecto usa Tesseract vía pytesseract para OCR (ver specs/01-mvp-ocr-tesseract-tkinter.md).
+Claude (los modelos de Anthropic, incluido Haiku) tiene capacidad de vision multimodal y puede
+transcribir texto de imagenes directamente via la API, sin necesidad de instalar Tesseract.
+Puede manejar mejor letra manuscrita, fuentes raras o imagenes con ruido que Tesseract, que es
+mas rigido. La contra: necesita API key, conexion a internet y tiene costo por request.
+
+Como implementarlo (a alto nivel)
+----------------------------------
+- SDK: paquete `anthropic` (pip install anthropic)
+- Se manda la imagen en base64 (o por URL) en un content block tipo "image", junto con un
+  content block de texto pidiendo la transcripcion.
+- Modelo sugerido: claude-haiku-4-5 (el mas barato, rapido, alcanza para transcripcion simple)
+
+Ejemplo minimo:
+
+    import anthropic, base64
+
+    client = anthropic.Anthropic()  # toma la API key de ANTHROPIC_API_KEY
+
+    with open("imagen.png", "rb") as f:
+        image_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+    response = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=2048,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/png", "data": image_data},
+                },
+                {"type": "text", "text": "Transcribe todo el texto de esta imagen, en el idioma original."},
+            ],
+        }],
+    )
+    texto = next(b.text for b in response.content if b.type == "text")
+
+Pricing (Claude Haiku 4.5, vigente a la fecha de esta nota)
+-------------------------------------------------------------
+- Input:  $1.00 por millon de tokens
+- Output: $5.00 por millon de tokens
+
+Estimacion de tokens de imagen (formula estandar, sin alta resolucion):
+    tokens ~= (ancho_px * alto_px) / 750
+
+Ejemplo: pagina escaneada de ~1000x1400 px
+    Input:  ~1867 tokens de imagen -> $1.00/1M -> ~$0.0019
+    Output: ~600 tokens (transcripcion de ~300-500 palabras) -> $5.00/1M -> ~$0.003
+    Total: ~$0.005 por imagen (medio centavo de dolar)
+
+Para 1000 imagenes/mes: ~$5 USD/mes. Bastante accesible.
+Si las imagenes son de alta resolucion (fotos, escaneos a 300dpi), el costo de input sube
+proporcional al tamano en pixeles -> conviene redimensionar antes de mandarlas si no se necesita
+la resolucion completa.
+
+Consideraciones si algun dia se implementa
+--------------------------------------------
+- Requiere una spec nueva (ver flujo /spec en CLAUDE.md) porque:
+  - Cambia la restriccion de dependencias externas (solo pytesseract + Pillow aprobadas para el MVP)
+  - Es una decision de arquitectura (local/offline vs. cloud con costo por uso)
+  - Habria que decidir si reemplaza a Tesseract o queda como opcion alternativa seleccionable
+  - Necesitaria manejo de API key (similar a como se maneja la ruta de Tesseract: pedirla y
+    persistirla en config.json si no esta en variable de entorno)
