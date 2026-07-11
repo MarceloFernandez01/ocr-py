@@ -23,6 +23,10 @@
   5. `adaptativo` — umbral adaptativo gaussiano (`cv2.adaptiveThreshold`), para gradientes.
   6. `canal_color` — canal de mayor contraste/varianza + Otsu (texto separado por color,
      ej. naranja sobre violeta).
+- **Upscaling de imágenes/tiles chicos:** si el alto de la imagen es menor a
+  `MIN_TEXT_HEIGHT` (150px), se escala hasta `MAX_UPSCALE` (4x) antes de generar las
+  variantes. Necesario para capturas de una sola línea con texto de contorno grueso,
+  donde Tesseract no resuelve el trazo aunque el fondo ya esté bien binarizado.
 - **Selección por confianza, por tile:** para cada tile (los que ya produce
   `prepare_tiles` de la spec 02), se transcribe cada variante con
   `pytesseract.image_to_data`, se calcula la **confianza media de las palabras** con
@@ -128,6 +132,10 @@ por tile.
   Mantiene el MVP simple; ampliar el set queda para spec futura.
 - **Sí:** confianza = media de `conf` de palabras (`conf >= 0`) vía `image_to_data`. Métrica
   simple y disponible en pytesseract sin dependencias extra.
+- **Sí:** upscaling automático (hasta 4x) de imágenes con menos de 150px de alto, agregado
+  durante la implementación al comprobar con capturas reales del usuario que el fallo en
+  texto de una sola línea con contorno grueso era de resolución, no de fondo/color — las
+  variantes ya solucionaban el fondo pero Tesseract no resolvía el trazo sin más píxeles.
 - **No:** mostrar la variante ganadora o la imagen preprocesada en la GUI. Feedback
   innecesario para el MVP de esta feature.
 - **No:** optimizar la cantidad de llamadas a Tesseract. Se acepta el costo; el contador de
