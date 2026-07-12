@@ -19,30 +19,46 @@ class MainView:
         self.root = root
 
         root.columnconfigure(0, weight=1)
-        root.columnconfigure(1, weight=1)
         root.rowconfigure(1, weight=1)
-        root.rowconfigure(2, weight=1)
 
-        self.open_button = tk.Button(root, text="Abrir imagen")
-        self.open_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        toolbar = tk.Frame(root)
+        toolbar.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+
+        self.open_button = tk.Button(toolbar, text="Abrir imagen")
+        self.open_button.pack(side="left")
 
         self.language_var = tk.StringVar(value="Ambos")
         self.language_combobox = ttk.Combobox(
-            root,
+            toolbar,
             textvariable=self.language_var,
             values=LANGUAGE_OPTIONS,
             state="readonly",
+            width=12,
         )
-        self.language_combobox.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.language_combobox.pack(side="left", padx=5)
 
-        self.preview_label = tk.Label(root, text="Sin imagen cargada", relief="sunken", width=50, height=25)
-        self.preview_label.grid(row=1, column=0, rowspan=2, padx=5, pady=5, sticky="nsew")
+        self.transcribe_button = tk.Button(toolbar, text="Transcribir", state="disabled")
+        self.transcribe_button.pack(side="left")
 
-        self.transcribe_button = tk.Button(root, text="Transcribir", state="disabled")
-        self.transcribe_button.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        paned = ttk.PanedWindow(root, orient="horizontal")
+        paned.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
 
-        self.result_text = tk.Text(root, state="disabled", width=60, height=25)
-        self.result_text.grid(row=2, column=1, padx=5, pady=5, sticky="nsew")
+        preview_frame = tk.Frame(paned)
+        self.preview_label = tk.Label(
+            preview_frame, text="Sin imagen cargada", relief="sunken", anchor="center"
+        )
+        self.preview_label.pack(fill="both", expand=True)
+        paned.add(preview_frame, weight=1)
+
+        result_frame = tk.Frame(paned)
+        result_frame.columnconfigure(0, weight=1)
+        result_frame.rowconfigure(0, weight=1)
+        self.result_text = tk.Text(result_frame, state="disabled", wrap="word")
+        self.result_text.grid(row=0, column=0, sticky="nsew")
+        result_scrollbar = ttk.Scrollbar(result_frame, orient="vertical", command=self.result_text.yview)
+        result_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.result_text.configure(yscrollcommand=result_scrollbar.set)
+        paned.add(result_frame, weight=1)
 
     def set_preview_image(self, photo_image: tk.PhotoImage) -> None:
         """Muestra la imagen recibida en el área de vista previa."""

@@ -5,15 +5,15 @@ import threading
 import time
 from tkinter import filedialog, messagebox
 
-from PIL import Image, ImageTk
+from PIL import Image, ImageOps, ImageTk
 
 from model.config_model import save_tesseract_path
 from model.ocr_model import transcribe_large_image
 from model.tesseract_locator import resolve_tesseract_path
 from view.main_view import MainView
 
-PREVIEW_MAX_SIZE = (400, 300)
 COUNTER_INTERVAL_MS = 200
+PREVIEW_RESIZE_DEBOUNCE_MS = 120
 
 LANGUAGE_MAP = {
     "Español": "spa",
@@ -39,9 +39,12 @@ class OcrController:
         """Registra los callbacks de la vista y crea el estado en memoria."""
         self.view = view
         self.state = AppState()
+        self._preview_source: Image.Image | None = None
+        self._preview_resize_job: str | None = None
 
         self.view.open_button.configure(command=self.on_open_image)
         self.view.transcribe_button.configure(command=self.on_transcribe)
+        self.view.preview_label.bind("<Configure>", self._on_preview_resize)
 
     def on_open_image(self) -> None:
         """Abre un diálogo de selección de archivo, carga la imagen y actualiza la vista previa."""
@@ -51,15 +54,35 @@ class OcrController:
 
         try:
             image = Image.open(path)
-            image.thumbnail(PREVIEW_MAX_SIZE)
-            photo_image = ImageTk.PhotoImage(image)
+            image.load()
         except Exception as error:
             messagebox.showerror("Error al cargar la imagen", str(error))
             return
 
-        self.view.set_preview_image(photo_image)
+        self._preview_source = image
+        self._render_preview()
         self.state.image_path = path
         self.view.enable_transcribe_button()
+
+    def _render_preview(self) -> None:
+        """Reescala la imagen fuente al tamaño actual del recuadro de vista previa."""
+        if self._preview_source is None:
+            return
+
+        label = self.view.preview_label
+        width, height = label.winfo_width(), label.winfo_height()
+        if width <= 1 or height <= 1:
+            return
+
+        fitted = ImageOps.contain(self._preview_source, (width, height))
+        photo_image = ImageTk.PhotoImage(fitted)
+        self.view.set_preview_image(photo_image)
+
+    def _on_preview_resize(self, event) -> None:
+        """Reprograma el reescalado de la vista previa con debounce ante eventos `<Configure>`."""
+        if self._preview_resize_job is not None:
+            self.view.root.after_cancel(self._preview_resize_job)
+        self._preview_resize_job = self.view.root.after(PREVIEW_RESIZE_DEBOUNCE_MS, self._render_preview)
 
     def on_transcribe(self) -> None:
         """Transcribe la imagen cargada usando el idioma seleccionado en la vista."""

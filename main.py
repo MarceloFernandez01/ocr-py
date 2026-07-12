@@ -10,6 +10,8 @@ def main() -> None:
     """Crea y ejecuta la ventana principal de la aplicación."""
     root = tk.Tk()
     root.title("OCR")
+    root.geometry("900x600")
+    root.minsize(600, 400)
     view = MainView(root)
     OcrController(view)
     root.mainloop()
