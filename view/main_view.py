@@ -18,6 +18,11 @@ class MainView:
         """Crea los widgets de la ventana sobre el `root` recibido."""
         self.root = root
 
+        root.columnconfigure(0, weight=1)
+        root.columnconfigure(1, weight=1)
+        root.rowconfigure(1, weight=1)
+        root.rowconfigure(2, weight=1)
+
         self.open_button = tk.Button(root, text="Abrir imagen")
         self.open_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
 
@@ -30,14 +35,14 @@ class MainView:
         )
         self.language_combobox.grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
+        self.preview_label = tk.Label(root, text="Sin imagen cargada", relief="sunken", width=50, height=25)
+        self.preview_label.grid(row=1, column=0, rowspan=2, padx=5, pady=5, sticky="nsew")
+
         self.transcribe_button = tk.Button(root, text="Transcribir", state="disabled")
-        self.transcribe_button.grid(row=0, column=2, padx=5, pady=5, sticky="w")
+        self.transcribe_button.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 
-        self.preview_label = tk.Label(root, text="Sin imagen cargada", relief="sunken", width=50, height=15)
-        self.preview_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
-
-        self.result_text = tk.Text(root, state="disabled", width=60, height=15)
-        self.result_text.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
+        self.result_text = tk.Text(root, state="disabled", width=60, height=25)
+        self.result_text.grid(row=2, column=1, padx=5, pady=5, sticky="nsew")
 
     def set_preview_image(self, photo_image: tk.PhotoImage) -> None:
         """Muestra la imagen recibida en el área de vista previa."""
