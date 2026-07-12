@@ -1,6 +1,6 @@
 # SPEC 04 — Migración a PySide6 con menú de inicio
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** `specs/03-preprocesamiento-ocr.md`
 > **Date:** 2026-07-12
 > **Objective:** Migrar la interfaz gráfica de Tkinter a PySide6, introduciendo una
