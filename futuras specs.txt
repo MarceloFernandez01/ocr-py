@@ -1,0 +1,7 @@
+futuras freatures:
+
+-Mejoras en la interfaz.
+-menus
+-ocr en vivo
+-traducciones
+-ocr con claude

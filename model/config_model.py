@@ -9,12 +9,16 @@ CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 def load_config() -> dict:
     """Carga la configuración desde config.json.
 
-    Devuelve un diccionario vacío si el archivo no existe.
+    Devuelve un diccionario con los valores default (`theme` en `"dark"`) si el
+    archivo no existe o no incluye alguna clave.
     """
     if not os.path.exists(CONFIG_PATH):
-        return {}
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+        config = {}
+    else:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            config = json.load(f)
+    config.setdefault("theme", "dark")
+    return config
 
 
 def save_tesseract_path(path: str) -> None:
