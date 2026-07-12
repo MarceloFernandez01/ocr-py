@@ -1,20 +1,20 @@
 """Punto de entrada de la aplicación de escritorio OCR."""
 
-import tkinter as tk
+import sys
+
+from PySide6.QtWidgets import QApplication
 
 from controller.ocr_controller import OcrController
-from view.main_view import MainView
+from view.main_window import MainWindow
 
 
 def main() -> None:
     """Crea y ejecuta la ventana principal de la aplicación."""
-    root = tk.Tk()
-    root.title("OCR")
-    root.geometry("1200x900")
-    root.minsize(600, 400)
-    view = MainView(root)
-    OcrController(view)
-    root.mainloop()
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    controller = OcrController(window.ocr_view)  # referencia viva: sin esto Python lo recolecta y desconecta las señales
+    window.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

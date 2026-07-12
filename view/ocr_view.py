@@ -53,6 +53,7 @@ class OcrView(QWidget):
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setFrameShape(QFrame.Panel)
         self.preview_label.setFrameShadow(QFrame.Sunken)
+        self.preview_label.setMinimumSize(1, 1)
 
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
