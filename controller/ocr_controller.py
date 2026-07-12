@@ -1,12 +1,11 @@
 """Conecta los eventos de la vista con la lógica del Model."""
 
 import os
-import threading
 import time
 
 from PIL import Image, ImageOps
 from PIL.ImageQt import ImageQt
-from PySide6.QtCore import QEvent, QObject, QTimer
+from PySide6.QtCore import QEvent, QObject, QThread, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
@@ -23,6 +22,29 @@ LANGUAGE_MAP = {
     "Inglés": "eng",
     "Ambos": "spa+eng",
 }
+
+
+class TranscriptionWorker(QThread):
+    """Corre `transcribe_large_image` en un hilo aparte y emite el resultado por señal."""
+
+    succeeded = Signal(str)
+    failed = Signal(str)
+
+    def __init__(self, image_path: str, language_code: str, tesseract_path: str | None, parent: QObject | None = None) -> None:
+        """Guarda los parámetros de la transcripción a ejecutar en `run()`."""
+        super().__init__(parent)
+        self.image_path = image_path
+        self.language_code = language_code
+        self.tesseract_path = tesseract_path
+
+    def run(self) -> None:
+        """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado."""
+        try:
+            result = transcribe_large_image(self.image_path, self.language_code, self.tesseract_path)
+        except Exception as error:
+            self.failed.emit(str(error))
+        else:
+            self.succeeded.emit(result)
 
 
 class AppState:
@@ -108,46 +130,40 @@ class OcrController(QObject):
         self._start_transcription(language_code, tesseract_path)
 
     def _start_transcription(self, language_code: str, tesseract_path: str | None) -> None:
-        """Lanza la transcripción en un hilo aparte y arranca el contador de segundos en vivo."""
+        """Lanza la transcripción en un `QThread` y arranca el contador de segundos en vivo."""
         self.state.transcription_in_progress = True
         self.view.disable_transcribe_button()
-        self._transcription_result: str | None = None
-        self._transcription_error: Exception | None = None
         self._transcription_start = time.monotonic()
 
-        self._transcription_thread = threading.Thread(
-            target=self._run_transcription,
-            args=(language_code, tesseract_path),
-            daemon=True,
-        )
-        self._transcription_thread.start()
+        self._worker = TranscriptionWorker(self.state.image_path, language_code, tesseract_path, self)
+        self._worker.succeeded.connect(self._on_transcription_succeeded)
+        self._worker.failed.connect(self._on_transcription_failed)
+        self._worker.start()
 
-        self._poll_timer = QTimer(self)
-        self._poll_timer.timeout.connect(self._poll_transcription)
-        self._poll_timer.start(COUNTER_INTERVAL_MS)
-        self._poll_transcription()
+        self._counter_timer = QTimer(self)
+        self._counter_timer.timeout.connect(self._update_counter)
+        self._counter_timer.start(COUNTER_INTERVAL_MS)
+        self._update_counter()
 
-    def _run_transcription(self, language_code: str, tesseract_path: str | None) -> None:
-        """Corre en el hilo secundario: transcribe y guarda el resultado o el error."""
-        try:
-            self._transcription_result = transcribe_large_image(self.state.image_path, language_code, tesseract_path)
-        except Exception as error:
-            self._transcription_error = error
+    def _update_counter(self) -> None:
+        """Actualiza el contador de segundos mientras la transcripción está en curso."""
+        elapsed = int(time.monotonic() - self._transcription_start)
+        self.view.set_result_text(f"Procesando... {elapsed}s")
 
-    def _poll_transcription(self) -> None:
-        """Actualiza el contador de segundos cada `COUNTER_INTERVAL_MS` mientras el hilo sigue vivo."""
-        if self._transcription_thread.is_alive():
-            elapsed = int(time.monotonic() - self._transcription_start)
-            self.view.set_result_text(f"Procesando... {elapsed}s")
-            return
+    def _on_transcription_succeeded(self, result: str) -> None:
+        """Muestra el resultado de la transcripción al terminar con éxito."""
+        self._counter_timer.stop()
+        self.view.set_result_text(result)
+        self._finish_transcription()
 
-        self._poll_timer.stop()
+    def _on_transcription_failed(self, error_message: str) -> None:
+        """Muestra el error de la transcripción al terminar con una excepción."""
+        self._counter_timer.stop()
+        QMessageBox.critical(self.view, "Error al transcribir", error_message)
+        self._finish_transcription()
 
-        if self._transcription_error is not None:
-            QMessageBox.critical(self.view, "Error al transcribir", str(self._transcription_error))
-        else:
-            self.view.set_result_text(self._transcription_result)
-
+    def _finish_transcription(self) -> None:
+        """Reactiva el botón "Transcribir" y limpia el estado de "en progreso"."""
         self.state.transcription_in_progress = False
         self.view.enable_transcribe_button()
 
