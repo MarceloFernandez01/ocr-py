@@ -2,3 +2,4 @@ pytesseract
 Pillow
 numpy
 opencv-python
+PySide6
