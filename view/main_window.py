@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtGui import QColor, QPalette
-from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from model.config_model import load_config
 from view.metro_style import METRO_STYLESHEET
@@ -59,12 +59,19 @@ class MainWindow(QMainWindow):
         self.sidebar_view.setFixedWidth(SIDEBAR_WIDTH)
         self.ocr_view = OcrView()
 
+        separator = QFrame()
+        separator.setObjectName("sidebarSeparator")
+        separator.setFrameShape(QFrame.VLine)
+        separator.setFixedWidth(1)
+
         self.content_stack = QStackedWidget()
         self.content_stack.addWidget(self.ocr_view)
 
         central_widget = QWidget()
         central_layout = QHBoxLayout(central_widget)
+        central_layout.setSpacing(0)
         central_layout.addWidget(self.sidebar_view)
+        central_layout.addWidget(separator)
         central_layout.addWidget(self.content_stack)
         self.setCentralWidget(central_widget)
 

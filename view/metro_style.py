@@ -92,6 +92,10 @@ QComboBox QAbstractItemView {{
     border: none;
 }}
 
+QFrame#sidebarSeparator {{
+    background-color: rgb(80, 80, 80);
+}}
+
 QLabel {{
     background-color: transparent;
     font-size: 13px;
