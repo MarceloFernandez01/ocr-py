@@ -9,7 +9,7 @@ from model.config_model import load_config
 from view.ocr_view import OcrView
 from view.sidebar_view import SidebarView
 
-FIXED_SIZE = (1200, 900)
+FIXED_SIZE = (1000, 500)
 SIDEBAR_WIDTH = 200
 
 DARK_PALETTE = {
