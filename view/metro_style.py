@@ -97,6 +97,11 @@ QLabel {{
     font-size: 13px;
 }}
 
+QLabel#previewLabel {{
+    background-color: rgb(35, 35, 35);
+    border: 1px solid rgb(80, 80, 80);
+}}
+
 QTextEdit {{
     background-color: rgb(35, 35, 35);
     color: white;

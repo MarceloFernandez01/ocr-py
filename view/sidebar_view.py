@@ -5,13 +5,6 @@ from __future__ import annotations
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
-CHECKED_BUTTON_STYLE = """
-QPushButton:checked {
-    background-color: rgb(42, 130, 218);
-    color: white;
-}
-"""
-
 
 class SidebarView(QWidget):
     """Menú lateral con la opción "OCR de imágenes" y placeholders deshabilitados.
@@ -27,11 +20,12 @@ class SidebarView(QWidget):
         super().__init__(parent)
 
         self.ocr_button = QPushButton("OCR de imágenes")
+        self.ocr_button.setObjectName("sidebarTile")
         self.ocr_button.setCheckable(True)
         self.ocr_button.setChecked(True)
-        self.ocr_button.setStyleSheet(CHECKED_BUTTON_STYLE)
 
         self.live_ocr_button = QPushButton("OCR en vivo")
+        self.live_ocr_button.setObjectName("sidebarTile")
         self.live_ocr_button.setEnabled(False)
 
         layout = QVBoxLayout(self)

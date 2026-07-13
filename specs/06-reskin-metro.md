@@ -1,6 +1,6 @@
 # SPEC 06 — Re-skin visual estilo Metro
 
-> **Status:** Aprobada
+> **Status:** Implementada
 > **Depends on:** `specs/05-menu-lateral-persistente.md`
 > **Date:** 2026-07-12
 > **Objective:** Aplicar un re-skin visual estilo Metro (Modern UI) a toda la GUI —tipografía Segoe UI, superficies planas, color de acento y tiles— mediante un stylesheet QSS centralizado, sin modificar el layout ni la navegación actuales.
@@ -63,15 +63,15 @@ Las clases existentes (`MainWindow`, `SidebarView`, `OcrView`) no cambian su con
 
 ## Acceptance criteria
 
-- [ ] Existe `view/metro_style.py` con `METRO_STYLESHEET` (y constantes `ACCENT`, `FONT_FAMILY`); `python -c "from view.metro_style import METRO_STYLESHEET"` corre sin error.
-- [ ] `view/main_window.py` aplica el stylesheet metro una sola vez a nivel aplicación; no hay `setStyleSheet` con QSS de skin esparcido en `sidebar_view.py`/`ocr_view.py`.
-- [ ] `python main.py` muestra toda la GUI con tipografía Segoe UI y superficies planas (sin bordes redondeados ni sombras).
-- [ ] Los botones del sidebar se ven como tiles metro planos; el botón activo ("OCR de imágenes") aparece resaltado como bloque de acento azul `rgb(42,130,218)` y "OCR en vivo" sigue deshabilitado y atenuado.
-- [ ] Botones, combobox, preview y área de resultado de `OcrView` se ven coherentes con el metro y legibles sobre fondo oscuro (sin bajo contraste).
-- [ ] El tema sigue siendo oscuro fijo (no hay toggle ni tema claro nuevo).
-- [ ] `QFileDialog`/`QMessageBox` conservan su apariencia nativa (no se estilan en esta spec).
-- [ ] El flujo completo de OCR (abrir imagen, idioma, transcribir, preview, resultado) funciona igual que antes del re-skin; ningún comportamiento funcional cambió.
-- [ ] MVC respetado: `metro_style.py` no importa `pytesseract`; las vistas no contienen lógica de negocio.
+- [x] Existe `view/metro_style.py` con `METRO_STYLESHEET` (y constantes `ACCENT`, `FONT_FAMILY`); `python -c "from view.metro_style import METRO_STYLESHEET"` corre sin error.
+- [x] `view/main_window.py` aplica el stylesheet metro una sola vez a nivel aplicación; no hay `setStyleSheet` con QSS de skin esparcido en `sidebar_view.py`/`ocr_view.py`.
+- [x] `python main.py` muestra toda la GUI con tipografía Segoe UI y superficies planas (sin bordes redondeados ni sombras).
+- [x] Los botones del sidebar se ven como tiles metro planos; el botón activo ("OCR de imágenes") aparece resaltado como bloque de acento azul `rgb(42,130,218)` y "OCR en vivo" sigue deshabilitado y atenuado.
+- [x] Botones, combobox, preview y área de resultado de `OcrView` se ven coherentes con el metro y legibles sobre fondo oscuro (sin bajo contraste).
+- [x] El tema sigue siendo oscuro fijo (no hay toggle ni tema claro nuevo).
+- [x] `QFileDialog`/`QMessageBox` conservan su apariencia nativa (no se estilan en esta spec).
+- [x] El flujo completo de OCR (abrir imagen, idioma, transcribir, preview, resultado) funciona igual que antes del re-skin; ningún comportamiento funcional cambió.
+- [x] MVC respetado: `metro_style.py` no importa `pytesseract`; las vistas no contienen lógica de negocio.
 
 ## Decisions
 
