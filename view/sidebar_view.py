@@ -7,14 +7,15 @@ from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
 
 class SidebarView(QWidget):
-    """Menú lateral con "OCR de imágenes", un placeholder deshabilitado y Configuración.
+    """Menú lateral con "OCR de imágenes", "OCR en vivo" y Configuración.
 
-    No contiene lógica de negocio: emite `ocr_selected`/`settings_selected` al
-    elegir una opción habilitada. El botón activo queda resaltado vía su
-    estado `checked`, de forma mutuamente excluyente con los demás.
+    No contiene lógica de negocio: emite `ocr_selected`/`live_ocr_selected`/
+    `settings_selected` al elegir una opción. El botón activo queda resaltado
+    vía su estado `checked`, de forma mutuamente excluyente con los demás.
     """
 
     ocr_selected = Signal()
+    live_ocr_selected = Signal()
     settings_selected = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -28,7 +29,7 @@ class SidebarView(QWidget):
 
         self.live_ocr_button = QPushButton("OCR en vivo")
         self.live_ocr_button.setObjectName("sidebarTile")
-        self.live_ocr_button.setEnabled(False)
+        self.live_ocr_button.setCheckable(True)
 
         self.settings_button = QPushButton("⚙")
         self.settings_button.setObjectName("settingsTile")
@@ -41,9 +42,10 @@ class SidebarView(QWidget):
         layout.addStretch()
         layout.addWidget(self.settings_button, alignment=Qt.AlignLeft)
 
-        self._exclusive_buttons = (self.ocr_button, self.settings_button)
+        self._exclusive_buttons = (self.ocr_button, self.live_ocr_button, self.settings_button)
 
         self.ocr_button.clicked.connect(self._on_ocr_button_clicked)
+        self.live_ocr_button.clicked.connect(self._on_live_ocr_button_clicked)
         self.settings_button.clicked.connect(self._on_settings_button_clicked)
 
     def _select_exclusive(self, selected: QPushButton) -> None:
@@ -55,6 +57,11 @@ class SidebarView(QWidget):
         """Resalta "OCR de imágenes" y emite `ocr_selected`."""
         self._select_exclusive(self.ocr_button)
         self.ocr_selected.emit()
+
+    def _on_live_ocr_button_clicked(self) -> None:
+        """Resalta "OCR en vivo" y emite `live_ocr_selected`."""
+        self._select_exclusive(self.live_ocr_button)
+        self.live_ocr_selected.emit()
 
     def _on_settings_button_clicked(self) -> None:
         """Resalta el engranaje y emite `settings_selected`."""
