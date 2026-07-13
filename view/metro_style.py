@@ -71,6 +71,23 @@ QPushButton#sidebarTile:disabled {{
     color: rgb(130, 130, 130);
 }}
 
+QPushButton#settingsTile {{
+    text-align: center;
+    padding: 9px 0px;
+    font-size: 20px;
+    font-weight: 300;
+    background-color: rgb(53, 53, 53);
+}}
+
+QPushButton#settingsTile:hover:enabled {{
+    background-color: {ACCENT};
+}}
+
+QPushButton#settingsTile:checked {{
+    background-color: {ACCENT};
+    color: white;
+}}
+
 QComboBox {{
     background-color: rgb(68, 68, 68);
     color: white;
@@ -192,6 +209,25 @@ QPushButton#sidebarTile:checked {{
 QPushButton#sidebarTile:disabled {{
     background-color: rgb(240, 240, 240);
     color: rgb(160, 160, 160);
+}}
+
+QPushButton#settingsTile {{
+    text-align: center;
+    padding: 9px 0px;
+    font-size: 20px;
+    font-weight: 300;
+    background-color: rgb(240, 240, 240);
+    color: rgb(20, 20, 20);
+}}
+
+QPushButton#settingsTile:hover:enabled {{
+    background-color: {ACCENT};
+    color: white;
+}}
+
+QPushButton#settingsTile:checked {{
+    background-color: {ACCENT};
+    color: white;
 }}
 
 QComboBox {{

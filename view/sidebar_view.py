@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
 
@@ -31,14 +31,15 @@ class SidebarView(QWidget):
         self.live_ocr_button.setEnabled(False)
 
         self.settings_button = QPushButton("⚙")
-        self.settings_button.setObjectName("sidebarTile")
+        self.settings_button.setObjectName("settingsTile")
         self.settings_button.setCheckable(True)
+        self.settings_button.setFixedWidth(48)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.ocr_button)
         layout.addWidget(self.live_ocr_button)
         layout.addStretch()
-        layout.addWidget(self.settings_button)
+        layout.addWidget(self.settings_button, alignment=Qt.AlignLeft)
 
         self._exclusive_buttons = (self.ocr_button, self.settings_button)
 
