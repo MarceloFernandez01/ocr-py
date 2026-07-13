@@ -9,8 +9,14 @@ seleccionar la variante correspondiente. Aplicado a nivel `QApplication`/
 
 from __future__ import annotations
 
+from pathlib import Path
+
 ACCENT = "rgb(42, 130, 218)"
 FONT_FAMILY = "Segoe UI"
+
+_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+_CHEVRON_DOWN_DARK = (_ASSETS_DIR / "chevron_down_dark.png").as_posix()
+_CHEVRON_DOWN_LIGHT = (_ASSETS_DIR / "chevron_down_light.png").as_posix()
 
 METRO_STYLESHEET_DARK = f"""
 * {{
@@ -92,7 +98,7 @@ QComboBox {{
     background-color: rgb(68, 68, 68);
     color: white;
     border: none;
-    padding: 6px 10px;
+    padding: 6px 24px 6px 10px;
     font-size: 13px;
 }}
 
@@ -109,11 +115,26 @@ QComboBox:disabled {{
     color: rgb(150, 150, 150);
 }}
 
+QComboBox::drop-down {{
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 24px;
+    border: none;
+    background-color: transparent;
+}}
+
+QComboBox::down-arrow {{
+    image: url({_CHEVRON_DOWN_DARK});
+    width: 10px;
+    height: 10px;
+}}
+
 QComboBox QAbstractItemView {{
     background-color: rgb(68, 68, 68);
     color: white;
     selection-background-color: {ACCENT};
     border: none;
+    outline: none;
 }}
 
 QPushButton#themeSwitch {{
@@ -234,7 +255,7 @@ QComboBox {{
     background-color: rgb(255, 255, 255);
     color: rgb(20, 20, 20);
     border: 1px solid rgb(200, 200, 200);
-    padding: 6px 10px;
+    padding: 6px 24px 6px 10px;
     font-size: 13px;
 }}
 
@@ -251,11 +272,26 @@ QComboBox:disabled {{
     color: rgb(110, 110, 110);
 }}
 
+QComboBox::drop-down {{
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 24px;
+    border: none;
+    background-color: transparent;
+}}
+
+QComboBox::down-arrow {{
+    image: url({_CHEVRON_DOWN_LIGHT});
+    width: 10px;
+    height: 10px;
+}}
+
 QComboBox QAbstractItemView {{
     background-color: rgb(255, 255, 255);
     color: rgb(20, 20, 20);
     selection-background-color: {ACCENT};
     border: 1px solid rgb(200, 200, 200);
+    outline: none;
 }}
 
 QPushButton#themeSwitch {{
