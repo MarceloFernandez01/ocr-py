@@ -9,8 +9,8 @@ CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 def load_config() -> dict:
     """Carga la configuración desde config.json.
 
-    Devuelve un diccionario con los valores default (`theme` en `"dark"`) si el
-    archivo no existe o no incluye alguna clave.
+    Devuelve un diccionario con los valores default (`theme` en `"dark"`,
+    `engine` en `"tesseract"`) si el archivo no existe o no incluye alguna clave.
     """
     if not os.path.exists(CONFIG_PATH):
         config = {}
@@ -18,6 +18,7 @@ def load_config() -> dict:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = json.load(f)
     config.setdefault("theme", "dark")
+    config.setdefault("engine", "tesseract")
     return config
 
 
