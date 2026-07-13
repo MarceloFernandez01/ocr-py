@@ -139,21 +139,21 @@ class LiveOcrController(QObject):
 
 ## Acceptance criteria
 
-- [ ] El sidebar muestra "OCR en vivo" habilitado (ya no como placeholder deshabilitado), integrado a la exclusividad mutua con "OCR de imágenes" y "Configuración".
-- [ ] Al entrar a "OCR en vivo" y clickear "Activar selección", aparece un overlay centrado, semitransparente, con borde de acento y handles en las esquinas, siempre-encima del resto de ventanas.
-- [ ] El overlay se puede mover arrastrándolo desde el área central y redimensionar desde los handles de las esquinas, en cualquier monitor conectado.
-- [ ] Sin clickear ningún botón de "transcribir", el texto de `LiveOcrView` se actualiza solo cuando el contenido de pantalla dentro del overlay cambia (por movimiento/redimensión del overlay o por cambio del contenido subyacente).
-- [ ] Si el contenido capturado es idéntico al del poll anterior, no se dispara una nueva transcripción (el texto ya mostrado permanece igual).
-- [ ] La miniatura de `LiveOcrView` refleja la última captura realizada.
-- [ ] El overlay no se auto-captura (su propio borde/botón X no aparece como ruido en el texto transcrito).
-- [ ] Clickear la X del overlay lo cierra y detiene el polling, pero la vista "OCR en vivo" sigue activa en el content area con el botón "Activar selección" nuevamente habilitado.
-- [ ] Clickear "Activar selección" con el overlay ya cerrado lo vuelve a crear en la posición/tamaño default.
-- [ ] Navegar del sidebar a "OCR de imágenes" o "Configuración" mientras OCR en vivo está activo cierra el overlay y detiene el polling automáticamente.
-- [ ] El selector de idioma (Español/Inglés/Ambos) de `LiveOcrView` afecta la transcripción en vivo igual que en OCR de imágenes.
-- [ ] Si Tesseract no está configurado (ni en PATH ni en `config.json`), activar OCR en vivo dispara el mismo flujo de selección manual de ruta que ya existe en OCR de imágenes.
-- [ ] El flujo completo de "OCR de imágenes" (spec 01-03) sigue funcionando sin regresiones tras los cambios.
-- [ ] `config.json` gana la clave `"engine"` (default `"tesseract"`) sin perder ni sobreescribir `tesseract_path`/`theme` existentes.
-- [ ] MVC respetado: `ScreenOverlay`/`LiveOcrView` no llaman a `pytesseract` ni a `QScreen.grabWindow` con lógica de negocio embebida (la orquestación vive en `LiveOcrController`); `model/image_diff.py` y `model/ocr_model.py` no importan PySide6.
+- [x] El sidebar muestra "OCR en vivo" habilitado (ya no como placeholder deshabilitado), integrado a la exclusividad mutua con "OCR de imágenes" y "Configuración".
+- [x] Al entrar a "OCR en vivo" y clickear "Activar selección", aparece un overlay centrado, semitransparente, con borde de acento y handles en las esquinas, siempre-encima del resto de ventanas.
+- [x] El overlay se puede mover arrastrándolo desde el área central y redimensionar desde los handles de las esquinas, en cualquier monitor conectado.
+- [x] Sin clickear ningún botón de "transcribir", el texto de `LiveOcrView` se actualiza solo cuando el contenido de pantalla dentro del overlay cambia (por movimiento/redimensión del overlay o por cambio del contenido subyacente).
+- [x] Si el contenido capturado es idéntico al del poll anterior, no se dispara una nueva transcripción (el texto ya mostrado permanece igual).
+- [x] La miniatura de `LiveOcrView` refleja la última captura realizada.
+- [x] El overlay no se auto-captura (su propio borde/botón X no aparece como ruido en el texto transcrito).
+- [x] Clickear la X del overlay lo cierra y detiene el polling, pero la vista "OCR en vivo" sigue activa en el content area con el botón "Activar selección" nuevamente habilitado.
+- [x] Clickear "Activar selección" con el overlay ya cerrado lo vuelve a crear en la posición/tamaño default.
+- [x] Navegar del sidebar a "OCR de imágenes" o "Configuración" mientras OCR en vivo está activo cierra el overlay y detiene el polling automáticamente.
+- [x] El selector de idioma (Español/Inglés/Ambos) de `LiveOcrView` afecta la transcripción en vivo igual que en OCR de imágenes.
+- [x] Si Tesseract no está configurado (ni en PATH ni en `config.json`), activar OCR en vivo dispara el mismo flujo de selección manual de ruta que ya existe en OCR de imágenes.
+- [x] El flujo completo de "OCR de imágenes" (spec 01-03) sigue funcionando sin regresiones tras los cambios.
+- [x] `config.json` gana la clave `"engine"` (default `"tesseract"`) sin perder ni sobreescribir `tesseract_path`/`theme` existentes.
+- [x] MVC respetado: `ScreenOverlay`/`LiveOcrView` no llaman a `pytesseract` ni a `QScreen.grabWindow` con lógica de negocio embebida (la orquestación vive en `LiveOcrController`); `model/image_diff.py` y `model/ocr_model.py` no importan PySide6.
 - [ ] No hay texto ilegible (bajo contraste) en `LiveOcrView` ni en el overlay bajo ningún tema (claro/oscuro).
 
 ## Decisions

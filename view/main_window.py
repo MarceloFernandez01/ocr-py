@@ -6,6 +6,7 @@ from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from model.config_model import load_config
+from view.live_ocr_view import LiveOcrView
 from view.metro_style import get_stylesheet
 from view.ocr_view import OcrView
 from view.settings_view import SettingsView
@@ -63,6 +64,7 @@ class MainWindow(QMainWindow):
         self.sidebar_view = SidebarView()
         self.sidebar_view.setFixedWidth(SIDEBAR_WIDTH)
         self.ocr_view = OcrView()
+        self.live_ocr_view = LiveOcrView()
         self.settings_view = SettingsView()
 
         separator = QFrame()
@@ -72,6 +74,7 @@ class MainWindow(QMainWindow):
 
         self.content_stack = QStackedWidget()
         self.content_stack.addWidget(self.ocr_view)
+        self.content_stack.addWidget(self.live_ocr_view)
         self.content_stack.addWidget(self.settings_view)
 
         central_widget = QWidget()
@@ -83,11 +86,14 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         self.sidebar_view.ocr_selected.connect(self._show_ocr_view)
+        self.sidebar_view.live_ocr_selected.connect(self._show_live_ocr_view)
         self.sidebar_view.settings_selected.connect(self._show_settings_view)
 
+        from controller.live_ocr_controller import LiveOcrController
         from controller.settings_controller import SettingsController
 
         self.settings_controller = SettingsController(self.settings_view, self)
+        self.live_ocr_controller = LiveOcrController(self.live_ocr_view)
 
         config = load_config()
         self.apply_theme(config["theme"])
@@ -102,9 +108,15 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(get_stylesheet(theme))
 
     def _show_ocr_view(self) -> None:
-        """Cambia el contenido de la ventana a la pantalla de OCR."""
+        """Cambia el contenido de la ventana a la pantalla de OCR, deteniendo OCR en vivo."""
+        self.live_ocr_controller.stop()
         self.content_stack.setCurrentWidget(self.ocr_view)
 
+    def _show_live_ocr_view(self) -> None:
+        """Cambia el contenido de la ventana a la pantalla de OCR en vivo."""
+        self.content_stack.setCurrentWidget(self.live_ocr_view)
+
     def _show_settings_view(self) -> None:
-        """Cambia el contenido de la ventana a la pantalla de Configuración."""
+        """Cambia el contenido de la ventana a la pantalla de Configuración, deteniendo OCR en vivo."""
+        self.live_ocr_controller.stop()
         self.content_stack.setCurrentWidget(self.settings_view)
