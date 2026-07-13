@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
@@ -22,18 +22,15 @@ class OcrView(QWidget):
     """Construye y expone los widgets de la pantalla de OCR.
 
     No contiene lógica de negocio: solo layout y setters/getters simples,
-    con el mismo contrato que exponía `MainView` (Tkinter), más el botón
-    "Volver". El Controller conecta los eventos con el Model.
+    con el mismo contrato que exponía `MainView` (Tkinter). El Controller
+    conecta los eventos con el Model.
     """
-
-    back_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea los widgets de la pantalla de OCR."""
         super().__init__(parent)
 
         toolbar = QHBoxLayout()
-        self.back_button = QPushButton("Volver")
         self.open_button = QPushButton("Abrir imagen")
         self.language_combobox = QComboBox()
         self.language_combobox.addItems(LANGUAGE_OPTIONS)
@@ -41,7 +38,6 @@ class OcrView(QWidget):
         self.transcribe_button = QPushButton("Transcribir")
         self.transcribe_button.setEnabled(False)
 
-        toolbar.addWidget(self.back_button)
         toolbar.addWidget(self.open_button)
         toolbar.addWidget(self.language_combobox)
         toolbar.addWidget(self.transcribe_button)
@@ -64,8 +60,6 @@ class OcrView(QWidget):
         layout = QVBoxLayout(self)
         layout.addLayout(toolbar)
         layout.addLayout(content)
-
-        self.back_button.clicked.connect(self.back_requested.emit)
 
     def set_preview_image(self, pixmap: QPixmap) -> None:
         """Muestra la imagen recibida en el área de vista previa."""

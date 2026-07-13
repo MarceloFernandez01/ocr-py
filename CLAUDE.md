@@ -24,9 +24,9 @@ El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado
 - `model/ocr_model.py` — `transcribe(image_path, language_code, tesseract_path)`, envuelve `pytesseract`; orquesta tiling y preprocesamiento.
 - `model/image_tiling.py` — divide/downscale imágenes grandes en tiles para OCR (spec 02).
 - `model/image_preprocessing.py` — genera variantes de preprocesamiento (`numpy`/`opencv-python`) y upscaling de imágenes chicas, con selección por confianza (spec 03).
-- `view/main_window.py` — `MainWindow` (`QMainWindow`), aloja un `QStackedWidget` con `HomeView` y `OcrView`, tamaño fijo 1200x900 (mínimo 600x400), aplica tema oscuro fijo (spec 04).
-- `view/home_view.py` — `HomeView`, pantalla de inicio con botón "OCR de imágenes" y placeholders deshabilitados para futuras opciones (spec 04).
-- `view/ocr_view.py` — `OcrView`, widgets PySide6 del flujo de OCR (abrir imagen, idioma, transcribir, preview, resultado) más botón "Volver" (spec 04, reemplaza a `main_view.py`).
+- `view/main_window.py` — `MainWindow` (`QMainWindow`), layout horizontal con `SidebarView` (ancho fijo 200px) a la izquierda y un `QStackedWidget` de contenido a la derecha con `OcrView` (índice 0, activo por default), tamaño fijo `setFixedSize(1200, 900)`, aplica tema oscuro fijo (spec 05).
+- `view/sidebar_view.py` — `SidebarView`, panel lateral persistente con botón "OCR de imágenes" (checkable, resalta la opción activa) y placeholders deshabilitados para futuras opciones (spec 05, reemplaza a `home_view.py`/`HomeView` de la spec 04).
+- `view/ocr_view.py` — `OcrView`, widgets PySide6 del flujo de OCR (abrir imagen, idioma, transcribir, preview, resultado), sin botón "Volver" desde la spec 05 (ya no hace falta con el sidebar siempre visible).
 - `controller/ocr_controller.py` — `OcrController` y `AppState`, conecta los widgets de `OcrView` con el Model, incluye manejo de errores (imagen inválida, Tesseract no encontrado, fallo de transcripción) vía `QMessageBox`/`QFileDialog`, y threading con `QThread` + señales para el contador de segundos en transcripciones largas.
 - `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`, `PySide6`.
 - `config.json` — generado en runtime (no versionado, está en `.gitignore`), incluye `tesseract_path` (cuando el usuario configura una ruta manual) y `theme` (default `"dark"`).
