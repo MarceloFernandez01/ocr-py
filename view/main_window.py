@@ -6,6 +6,7 @@ from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from model.config_model import load_config
+from view.metro_style import METRO_STYLESHEET
 from view.ocr_view import OcrView
 from view.sidebar_view import SidebarView
 
@@ -52,6 +53,7 @@ class MainWindow(QMainWindow):
         config = load_config()
         if config.get("theme", "dark") == "dark":
             apply_dark_theme(self)
+        self.setStyleSheet(METRO_STYLESHEET)
 
         self.sidebar_view = SidebarView()
         self.sidebar_view.setFixedWidth(SIDEBAR_WIDTH)
