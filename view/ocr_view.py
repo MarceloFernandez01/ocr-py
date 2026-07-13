@@ -6,7 +6,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
-    QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -47,9 +46,8 @@ class OcrView(QWidget):
         right_toolbar.addStretch()
 
         self.preview_label = QLabel("Sin imagen cargada")
+        self.preview_label.setObjectName("previewLabel")
         self.preview_label.setAlignment(Qt.AlignCenter)
-        self.preview_label.setFrameShape(QFrame.Panel)
-        self.preview_label.setFrameShadow(QFrame.Sunken)
         self.preview_label.setMinimumSize(1, 1)
 
         self.result_text = QTextEdit()
