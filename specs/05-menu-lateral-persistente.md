@@ -1,6 +1,6 @@
 # SPEC 05 — Menú lateral persistente en la ventana principal
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** `specs/04-migracion-pyside6-menu-inicio.md`
 > **Date:** 2026-07-12
 > **Objective:** Reemplazar la pantalla de inicio de pantalla completa por un layout persistente con un menú lateral (sidebar) siempre visible y un área de contenido central que cambia según la opción seleccionada, con OCR de imágenes activo por default.
