@@ -1,8 +1,10 @@
 """Skin visual estilo Metro (PySide6): solo presentación, sin lógica de negocio.
 
-Expone `METRO_STYLESHEET`, la única fuente de QSS del look metro, para ser
-aplicado una sola vez a nivel `QApplication`/`MainWindow`. No importa
-`pytesseract` ni contiene reglas de negocio (respeta MVC).
+Expone `METRO_STYLESHEET_DARK` y `METRO_STYLESHEET_LIGHT`, las fuentes de QSS
+del look metro para cada tema, junto con `get_stylesheet(theme)` para
+seleccionar la variante correspondiente. Aplicado a nivel `QApplication`/
+`MainWindow`. No importa `pytesseract` ni contiene reglas de negocio
+(respeta MVC).
 """
 
 from __future__ import annotations
@@ -10,7 +12,7 @@ from __future__ import annotations
 ACCENT = "rgb(42, 130, 218)"
 FONT_FAMILY = "Segoe UI"
 
-METRO_STYLESHEET = f"""
+METRO_STYLESHEET_DARK = f"""
 * {{
     font-family: "{FONT_FAMILY}";
 }}
@@ -85,11 +87,22 @@ QComboBox:focus {{
     border: 1px solid {ACCENT};
 }}
 
+QComboBox:disabled {{
+    background-color: rgb(60, 60, 60);
+    color: rgb(150, 150, 150);
+}}
+
 QComboBox QAbstractItemView {{
     background-color: rgb(68, 68, 68);
     color: white;
     selection-background-color: {ACCENT};
     border: none;
+}}
+
+QPushButton#themeSwitch {{
+    background-color: transparent;
+    border: none;
+    padding: 0px;
 }}
 
 QFrame#sidebarSeparator {{
@@ -117,3 +130,138 @@ QTextEdit:focus {{
     border: 1px solid {ACCENT};
 }}
 """
+
+METRO_STYLESHEET_LIGHT = f"""
+* {{
+    font-family: "{FONT_FAMILY}";
+}}
+
+QWidget {{
+    background-color: rgb(240, 240, 240);
+    color: rgb(20, 20, 20);
+    border: none;
+}}
+
+QMainWindow, QStackedWidget {{
+    background-color: rgb(240, 240, 240);
+}}
+
+QPushButton {{
+    background-color: rgb(225, 225, 225);
+    color: rgb(20, 20, 20);
+    border: none;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: normal;
+}}
+
+QPushButton:hover:enabled {{
+    background-color: {ACCENT};
+    color: white;
+}}
+
+QPushButton:pressed:enabled {{
+    background-color: rgb(30, 100, 170);
+    color: white;
+}}
+
+QPushButton:disabled {{
+    background-color: rgb(240, 240, 240);
+    color: rgb(160, 160, 160);
+}}
+
+QPushButton#sidebarTile {{
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 300;
+    background-color: rgb(240, 240, 240);
+    color: rgb(20, 20, 20);
+}}
+
+QPushButton#sidebarTile:hover:enabled {{
+    background-color: {ACCENT};
+    color: white;
+}}
+
+QPushButton#sidebarTile:checked {{
+    background-color: {ACCENT};
+    color: white;
+}}
+
+QPushButton#sidebarTile:disabled {{
+    background-color: rgb(240, 240, 240);
+    color: rgb(160, 160, 160);
+}}
+
+QComboBox {{
+    background-color: rgb(255, 255, 255);
+    color: rgb(20, 20, 20);
+    border: 1px solid rgb(200, 200, 200);
+    padding: 6px 10px;
+    font-size: 13px;
+}}
+
+QComboBox:hover {{
+    background-color: rgb(230, 230, 230);
+}}
+
+QComboBox:focus {{
+    border: 1px solid {ACCENT};
+}}
+
+QComboBox:disabled {{
+    background-color: rgb(225, 225, 225);
+    color: rgb(110, 110, 110);
+}}
+
+QComboBox QAbstractItemView {{
+    background-color: rgb(255, 255, 255);
+    color: rgb(20, 20, 20);
+    selection-background-color: {ACCENT};
+    border: 1px solid rgb(200, 200, 200);
+}}
+
+QPushButton#themeSwitch {{
+    background-color: transparent;
+    border: none;
+    padding: 0px;
+}}
+
+QFrame#sidebarSeparator {{
+    background-color: rgb(200, 200, 200);
+}}
+
+QLabel {{
+    background-color: transparent;
+    font-size: 13px;
+}}
+
+QLabel#previewLabel {{
+    background-color: rgb(255, 255, 255);
+    border: 1px solid rgb(200, 200, 200);
+}}
+
+QTextEdit {{
+    background-color: rgb(255, 255, 255);
+    color: rgb(20, 20, 20);
+    border: 1px solid rgb(200, 200, 200);
+    font-size: 13px;
+}}
+
+QTextEdit:focus {{
+    border: 1px solid {ACCENT};
+}}
+"""
+
+
+def get_stylesheet(theme: str) -> str:
+    """Devuelve el QSS correspondiente al tema pedido.
+
+    Args:
+        theme: "dark" o "light".
+
+    Returns:
+        `METRO_STYLESHEET_DARK` o `METRO_STYLESHEET_LIGHT` según `theme`.
+    """
+    return METRO_STYLESHEET_LIGHT if theme == "light" else METRO_STYLESHEET_DARK
