@@ -42,16 +42,28 @@ def transcribe_large_image(image_path: str, language_code: str, tesseract_path: 
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
     tiles = prepare_tiles(image_path)
-    texts = [_transcribe_best_variant(tile, language_code) for tile in tiles]
+    texts = [transcribe_image_variants(tile, language_code, None) for tile in tiles]
     return "\n".join(texts)
 
 
-def _transcribe_best_variant(tile: Image.Image, language_code: str) -> str:
-    """Transcribe todas las variantes preprocesadas de `tile`, puntúa cada una por
-    confianza media de palabra (`conf >= 0`, texto no vacío) y devuelve el texto de
-    la de mayor confianza; empate o todas vacías → gana la variante `original`.
+def transcribe_image_variants(image: Image.Image, language_code: str, tesseract_path: str | None) -> str:
+    """Transcribe una `PIL.Image` ya en memoria (sin ruta de archivo ni tiling).
+
+    Genera las variantes preprocesadas de `image`, puntúa cada una por confianza
+    media de palabra (`conf >= 0`, texto no vacío) y devuelve el texto de la de
+    mayor confianza; empate o todas vacías → gana la variante `original`. Misma
+    lógica que usa internamente `transcribe_large_image`, expuesta aquí para el
+    flujo de captura de pantalla en vivo.
+
+    Args:
+        image: imagen ya cargada en memoria a transcribir.
+        language_code: código de idioma de Tesseract (`spa`, `eng` o `spa+eng`).
+        tesseract_path: ruta al ejecutable de Tesseract, o None si ya está en el PATH.
     """
-    variants = generate_variants(tile)
+    if tesseract_path is not None:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
+    variants = generate_variants(image)
     best_variant = variants[0][1]  # original, por si todas las variantes empatan o quedan vacías
     best_confidence = -1.0
 
