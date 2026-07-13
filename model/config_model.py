@@ -31,3 +31,15 @@ def save_tesseract_path(path: str) -> None:
     config["tesseract_path"] = path
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
+
+
+def save_theme(theme: str) -> None:
+    """Persiste el tema elegido en config.json, preservando el resto de claves.
+
+    Args:
+        theme: "dark" o "light".
+    """
+    config = load_config()
+    config["theme"] = theme
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
