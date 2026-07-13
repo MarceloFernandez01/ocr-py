@@ -7,11 +7,11 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QTextEdit,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -30,7 +30,6 @@ class OcrView(QWidget):
         """Crea los widgets de la pantalla de OCR."""
         super().__init__(parent)
 
-        toolbar = QHBoxLayout()
         self.open_button = QPushButton("Abrir imagen")
         self.language_combobox = QComboBox()
         self.language_combobox.addItems(LANGUAGE_OPTIONS)
@@ -38,12 +37,14 @@ class OcrView(QWidget):
         self.transcribe_button = QPushButton("Transcribir")
         self.transcribe_button.setEnabled(False)
 
-        toolbar.addWidget(self.open_button)
-        toolbar.addWidget(self.language_combobox)
-        toolbar.addWidget(self.transcribe_button)
-        toolbar.addStretch()
+        left_toolbar = QHBoxLayout()
+        left_toolbar.addWidget(self.open_button)
+        left_toolbar.addStretch()
 
-        content = QHBoxLayout()
+        right_toolbar = QHBoxLayout()
+        right_toolbar.addWidget(self.language_combobox)
+        right_toolbar.addWidget(self.transcribe_button)
+        right_toolbar.addStretch()
 
         self.preview_label = QLabel("Sin imagen cargada")
         self.preview_label.setAlignment(Qt.AlignCenter)
@@ -54,12 +55,13 @@ class OcrView(QWidget):
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
 
-        content.addWidget(self.preview_label, 1)
-        content.addWidget(self.result_text, 1)
-
-        layout = QVBoxLayout(self)
-        layout.addLayout(toolbar)
-        layout.addLayout(content)
+        layout = QGridLayout(self)
+        layout.addLayout(left_toolbar, 0, 0)
+        layout.addLayout(right_toolbar, 0, 1)
+        layout.addWidget(self.preview_label, 1, 0)
+        layout.addWidget(self.result_text, 1, 1)
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(1, 1)
 
     def set_preview_image(self, pixmap: QPixmap) -> None:
         """Muestra la imagen recibida en el área de vista previa."""
