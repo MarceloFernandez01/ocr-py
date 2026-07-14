@@ -12,7 +12,7 @@ from view.ocr_view import OcrView
 from view.settings_view import SettingsView
 from view.sidebar_view import SidebarView
 
-FIXED_SIZE = (1000, 500)
+FIXED_SIZE = (1200, 600)
 SIDEBAR_WIDTH = 200
 
 DARK_PALETTE = {

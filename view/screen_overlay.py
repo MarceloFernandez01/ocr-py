@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QRect, Qt, Signal
-from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPaintEvent, QPen
+from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPaintEvent, QPen, QRegion
 from PySide6.QtWidgets import QPushButton, QWidget
 
 BORDER_WIDTH = 4
 HANDLE_SIZE = 16
 MIN_SIZE = 40
+CONTROL_BAR_HEIGHT = 28
 DEFAULT_SIZE = (500, 300)
 ACCENT_COLOR = QColor(42, 130, 218)
 
@@ -16,6 +17,9 @@ ACCENT_COLOR = QColor(42, 130, 218)
 class ScreenOverlay(QWidget):
     """Ventana top-level frameless, siempre-encima, semitransparente, con borde de
     acento y handles de redimensión en las esquinas. Arrastrable desde el área central.
+    Los botones (▶/⏸ y ✕) viven en una barra de control por encima del área de
+    selección, fuera de `capture_geometry()`, para que nunca aparezcan en la captura
+    de pantalla y no haga falta ocultarlos durante el polling.
     No contiene lógica de negocio ni de captura: solo geometría/dibujo y señales.
     """
 
@@ -49,30 +53,43 @@ class ScreenOverlay(QWidget):
 
     def capture_geometry(self) -> QRect:
         """Devuelve el `QRect` (coordenadas globales de pantalla) del área interior
-        a capturar, excluyendo el borde/handles dibujados por el propio overlay.
+        a capturar: el área de selección (bajo la barra de control) sin su borde/handles.
         """
+        selection = self._selection_rect()
         return QRect(
-            self.geometry().x() + BORDER_WIDTH,
-            self.geometry().y() + BORDER_WIDTH,
-            self.geometry().width() - 2 * BORDER_WIDTH,
-            self.geometry().height() - 2 * BORDER_WIDTH,
+            self.geometry().x() + selection.x() + BORDER_WIDTH,
+            self.geometry().y() + selection.y() + BORDER_WIDTH,
+            selection.width() - 2 * BORDER_WIDTH,
+            selection.height() - 2 * BORDER_WIDTH,
         )
 
+    def _selection_rect(self) -> QRect:
+        """Devuelve, en coordenadas locales del widget, el área de selección: todo
+        el overlay salvo la barra de control superior donde viven los botones.
+        """
+        return QRect(0, CONTROL_BAR_HEIGHT, self.width(), self.height() - CONTROL_BAR_HEIGHT)
+
     def _center_on_screen(self) -> None:
-        """Posiciona el overlay centrado en la pantalla primaria con el tamaño default."""
+        """Posiciona el overlay centrado en la pantalla primaria con el tamaño default
+        (el área de selección visible tiene `DEFAULT_SIZE`; se le suma la barra de control).
+        """
         screen_geometry = self.screen().availableGeometry()
         width, height = DEFAULT_SIZE
+        total_height = height + CONTROL_BAR_HEIGHT
         x = screen_geometry.x() + (screen_geometry.width() - width) // 2
-        y = screen_geometry.y() + (screen_geometry.height() - height) // 2
-        self.setGeometry(x, y, width, height)
+        y = screen_geometry.y() + (screen_geometry.height() - total_height) // 2
+        self.setGeometry(x, y, width, total_height)
         self._position_buttons()
 
     def _position_buttons(self) -> None:
-        """Ubica el botón de pausa/reanudar y el de cierre en la esquina superior derecha."""
-        self._close_button.move(self.width() - self._close_button.width() - BORDER_WIDTH, BORDER_WIDTH)
+        """Ubica el botón de pausa/reanudar y el de cierre dentro de la barra de control,
+        alineados verticalmente al centro de esta.
+        """
+        button_y = (CONTROL_BAR_HEIGHT - self._close_button.height()) // 2
+        self._close_button.move(self.width() - self._close_button.width() - BORDER_WIDTH, button_y)
         self._toggle_button.move(
             self._close_button.x() - self._toggle_button.width() - 4,
-            BORDER_WIDTH,
+            button_y,
         )
 
     def set_running(self, running: bool) -> None:
@@ -94,15 +111,25 @@ class ScreenOverlay(QWidget):
         self._position_buttons()
 
     def paintEvent(self, event: QPaintEvent) -> None:
-        """Dibuja el fondo semitransparente y el borde de acento con handles en las esquinas."""
+        """Dibuja el fondo semitransparente y el borde de acento con handles en las esquinas
+        del área de selección (la barra de control con los botones queda sin pintar).
+        El tinte semitransparente se limita al anillo del borde: el interior queda sin
+        pintar (transparente) para que `grabWindow` capture el contenido real de la
+        pantalla debajo, sin necesidad de ocultar nada durante cada captura.
+        """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 40))
+        selection = self._selection_rect()
+        inner = selection.adjusted(BORDER_WIDTH, BORDER_WIDTH, -BORDER_WIDTH, -BORDER_WIDTH)
+        border_region = QRegion(selection) - QRegion(inner)
+        painter.setClipRegion(border_region)
+        painter.fillRect(selection, QColor(0, 0, 0, 40))
+        painter.setClipping(False)
 
         pen = QPen(ACCENT_COLOR, BORDER_WIDTH)
         painter.setPen(pen)
-        painter.drawRect(self.rect().adjusted(BORDER_WIDTH // 2, BORDER_WIDTH // 2, -BORDER_WIDTH // 2, -BORDER_WIDTH // 2))
+        painter.drawRect(selection.adjusted(BORDER_WIDTH // 2, BORDER_WIDTH // 2, -BORDER_WIDTH // 2, -BORDER_WIDTH // 2))
 
         painter.setBrush(ACCENT_COLOR)
         painter.setPen(Qt.NoPen)
@@ -110,13 +137,14 @@ class ScreenOverlay(QWidget):
             painter.drawRect(handle_rect)
 
     def _handle_rects(self) -> dict[str, QRect]:
-        """Devuelve el rectángulo de cada handle de redimensión, por esquina."""
-        w, h = self.width(), self.height()
+        """Devuelve el rectángulo de cada handle de redimensión, por esquina del área de selección."""
+        selection = self._selection_rect()
+        left, top, right, bottom = selection.left(), selection.top(), selection.right(), selection.bottom()
         return {
-            "top_left": QRect(0, 0, HANDLE_SIZE, HANDLE_SIZE),
-            "top_right": QRect(w - HANDLE_SIZE, 0, HANDLE_SIZE, HANDLE_SIZE),
-            "bottom_left": QRect(0, h - HANDLE_SIZE, HANDLE_SIZE, HANDLE_SIZE),
-            "bottom_right": QRect(w - HANDLE_SIZE, h - HANDLE_SIZE, HANDLE_SIZE, HANDLE_SIZE),
+            "top_left": QRect(left, top, HANDLE_SIZE, HANDLE_SIZE),
+            "top_right": QRect(right - HANDLE_SIZE + 1, top, HANDLE_SIZE, HANDLE_SIZE),
+            "bottom_left": QRect(left, bottom - HANDLE_SIZE + 1, HANDLE_SIZE, HANDLE_SIZE),
+            "bottom_right": QRect(right - HANDLE_SIZE + 1, bottom - HANDLE_SIZE + 1, HANDLE_SIZE, HANDLE_SIZE),
         }
 
     def _handle_at(self, pos: QPoint) -> str | None:
@@ -172,15 +200,16 @@ class ScreenOverlay(QWidget):
         if "bottom" in self._resize_handle:
             rect.setBottom(start.bottom() + delta.y())
 
+        min_total_height = MIN_SIZE + CONTROL_BAR_HEIGHT
         if rect.width() < MIN_SIZE:
             if "left" in self._resize_handle:
                 rect.setLeft(rect.right() - MIN_SIZE)
             else:
                 rect.setRight(rect.left() + MIN_SIZE)
-        if rect.height() < MIN_SIZE:
+        if rect.height() < min_total_height:
             if "top" in self._resize_handle:
-                rect.setTop(rect.bottom() - MIN_SIZE)
+                rect.setTop(rect.bottom() - min_total_height)
             else:
-                rect.setBottom(rect.top() + MIN_SIZE)
+                rect.setBottom(rect.top() + min_total_height)
 
         self.setGeometry(rect)

@@ -219,6 +219,56 @@ QTextEdit {{
 QTextEdit:focus {{
     border: 1px solid {ACCENT};
 }}
+
+QScrollBar:vertical {{
+    background-color: rgb(35, 35, 35);
+    width: 12px;
+    margin: 0px;
+}}
+
+QScrollBar::handle:vertical {{
+    background-color: rgb(80, 80, 80);
+    min-height: 24px;
+}}
+
+QScrollBar::handle:vertical:hover {{
+    background-color: rgb(110, 110, 110);
+}}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+    height: 0px;
+    background: none;
+    border: none;
+}}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    background: none;
+}}
+
+QScrollBar:horizontal {{
+    background-color: rgb(35, 35, 35);
+    height: 12px;
+    margin: 0px;
+}}
+
+QScrollBar::handle:horizontal {{
+    background-color: rgb(80, 80, 80);
+    min-width: 24px;
+}}
+
+QScrollBar::handle:horizontal:hover {{
+    background-color: rgb(110, 110, 110);
+}}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+    width: 0px;
+    background: none;
+    border: none;
+}}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+    background: none;
+}}
 """
 
 METRO_STYLESHEET_LIGHT = f"""
@@ -427,6 +477,56 @@ QTextEdit {{
 
 QTextEdit:focus {{
     border: 1px solid {ACCENT};
+}}
+
+QScrollBar:vertical {{
+    background-color: rgb(255, 255, 255);
+    width: 12px;
+    margin: 0px;
+}}
+
+QScrollBar::handle:vertical {{
+    background-color: rgb(200, 200, 200);
+    min-height: 24px;
+}}
+
+QScrollBar::handle:vertical:hover {{
+    background-color: rgb(160, 160, 160);
+}}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+    height: 0px;
+    background: none;
+    border: none;
+}}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    background: none;
+}}
+
+QScrollBar:horizontal {{
+    background-color: rgb(255, 255, 255);
+    height: 12px;
+    margin: 0px;
+}}
+
+QScrollBar::handle:horizontal {{
+    background-color: rgb(200, 200, 200);
+    min-width: 24px;
+}}
+
+QScrollBar::handle:horizontal:hover {{
+    background-color: rgb(160, 160, 160);
+}}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+    width: 0px;
+    background: none;
+    border: none;
+}}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+    background: none;
 }}
 """
 

@@ -86,9 +86,10 @@ class TranslationWorker(QThread):
 class LiveOcrController(QObject):
     """Orquesta el ciclo completo de OCR en vivo: crea/destruye `ScreenOverlay` vía
     `activate_selection()`, arranca/detiene el `QTimer` de polling vía
-    `toggle_transcription()` (oculta overlay -> `QScreen.grabWindow` -> muestra
-    overlay -> diff vía `model/image_diff.py` -> si cambió, dispara transcripción
-    async con `QThread`), y actualiza `LiveOcrView` con cada captura/resultado.
+    `toggle_transcription()` (`QScreen.grabWindow` sobre `capture_geometry()`, que ya
+    excluye el borde y la barra de controles del overlay -> diff vía
+    `model/image_diff.py` -> si cambió, dispara transcripción async con `QThread`),
+    y actualiza `LiveOcrView` con cada captura/resultado.
     Expone `stop()` para que `MainWindow` lo invoque al navegar afuera de la vista.
     """
 
@@ -243,7 +244,6 @@ class LiveOcrController(QObject):
         capture_rect = self._overlay.capture_geometry()
         screen = self._overlay.screen()
 
-        self._overlay.hide()
         screen_geometry = screen.geometry()
         pixmap = screen.grabWindow(
             0,
@@ -252,7 +252,6 @@ class LiveOcrController(QObject):
             capture_rect.width(),
             capture_rect.height(),
         )
-        self._overlay.show()
 
         self._update_thumbnail(pixmap)
 

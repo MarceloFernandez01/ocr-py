@@ -15,6 +15,7 @@ Restricciones del proyecto (definidas en `readme.md`) y decisiones técnicas cer
 - **Selector de idioma con 3 opciones fijas:** Español (`spa`), Inglés (`eng`), Ambos (`spa+eng`). Idiomas adicionales quedan para specs futuras.
 - **Fuera de alcance del MVP:** guardado del texto a archivo o historial entre sesiones, instalación automática de Tesseract, motor ICR. (OCR en vivo/captura de pantalla ya está implementado, ver specs 08-10.)
 - **El código debe estar documentado.** Cada módulo, clase y función pública lleva un docstring explicando su propósito (qué hace, parámetros y valor de retorno cuando no sean obvios). Esto tiene prioridad sobre la preferencia global de evitar comentarios/documentación innecesaria.
+- **La IA no puede cambiar ni implementar nuevas funcionalidades si no se pide explisitamente.**  Solamente podra ser sugerencias, las cuales el usuario puede aprobar o rechazar.
 
 El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado. Estructura actual del código (detalle de cada módulo en su propio docstring):
 
