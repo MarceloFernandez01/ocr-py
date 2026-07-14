@@ -33,6 +33,7 @@ class LiveOcrView(QWidget):
         super().__init__(parent)
 
         self.language_label = QLabel("Idioma")
+        self.language_label.setObjectName("fieldLabel")
         self.language_combobox = QComboBox()
         self.language_combobox.addItems(LANGUAGE_OPTIONS)
         self.language_combobox.setCurrentText("Ambos")
