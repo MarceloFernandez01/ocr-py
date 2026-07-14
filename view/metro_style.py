@@ -77,6 +77,11 @@ QPushButton#sidebarTile:disabled {{
     color: rgb(130, 130, 130);
 }}
 
+QPushButton#cropButton:checked {{
+    background-color: {ACCENT};
+    color: white;
+}}
+
 QPushButton#settingsTile {{
     text-align: center;
     padding: 9px 0px;
@@ -171,6 +176,11 @@ QLabel#previewLabel {{
     border: 1px solid rgb(80, 80, 80);
 }}
 
+QRubberBand {{
+    background-color: rgba(42, 130, 218, 60);
+    border: 2px solid {ACCENT};
+}}
+
 QLabel#fieldLabel {{
     font-size: 11px;
     color: rgb(180, 180, 180);
@@ -249,6 +259,11 @@ QPushButton#sidebarTile:checked {{
 QPushButton#sidebarTile:disabled {{
     background-color: rgb(240, 240, 240);
     color: rgb(160, 160, 160);
+}}
+
+QPushButton#cropButton:checked {{
+    background-color: {ACCENT};
+    color: white;
 }}
 
 QPushButton#settingsTile {{
@@ -345,6 +360,11 @@ QLabel {{
 QLabel#previewLabel {{
     background-color: rgb(255, 255, 255);
     border: 1px solid rgb(200, 200, 200);
+}}
+
+QRubberBand {{
+    background-color: rgba(42, 130, 218, 60);
+    border: 2px solid {ACCENT};
 }}
 
 QLabel#fieldLabel {{
