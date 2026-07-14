@@ -85,6 +85,7 @@ class LiveOcrView(QWidget):
         target_language_layout.addWidget(self.target_language_combobox)
 
         self.translation_button = QPushButton("Activar traducción")
+        self.translation_button.setObjectName("translationButton")
         self.translation_button.setCheckable(True)
         self.translation_button.clicked.connect(self.translate_toggled)
 

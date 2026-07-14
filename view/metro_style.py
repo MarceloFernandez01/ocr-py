@@ -82,6 +82,11 @@ QPushButton#cropButton:checked {{
     color: white;
 }}
 
+QPushButton#translationButton:checked {{
+    background-color: {ACCENT};
+    color: white;
+}}
+
 QPushButton#settingsTile {{
     text-align: center;
     padding: 9px 0px;
@@ -262,6 +267,11 @@ QPushButton#sidebarTile:disabled {{
 }}
 
 QPushButton#cropButton:checked {{
+    background-color: {ACCENT};
+    color: white;
+}}
+
+QPushButton#translationButton:checked {{
     background-color: {ACCENT};
     color: white;
 }}
