@@ -1,6 +1,6 @@
 # SPEC 09 — Separar activación de overlay e inicio de transcripción en OCR en vivo + labels de idioma
 
-> **Status:** Aceptado
+> **Status:** Implementado
 > **Depends on:** `specs/08-ocr-en-vivo.md`
 > **Date:** 2026-07-13
 > **Objective:** Separar en dos botones independientes el flujo de "OCR en vivo" ("Activar selección" solo crea/reposiciona el overlay; "Iniciar transcripción" / "Pausar transcripción" controla el polling), y agregar un label "Idioma" sobre los selectores de idioma de `OcrView` y `LiveOcrView` para clarificar su propósito.
