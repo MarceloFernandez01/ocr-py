@@ -5,3 +5,4 @@ futuras freatures:
 -ocr en vivo
 -traducciones
 -ocr con claude
+-ocr en vivo: boton separado de "Activar seleccion" para iniciar la captura manualmente (activar seleccion solo posiciona/redimensiona el overlay sin arrancar el polling; el polling arranca recien al pulsar este nuevo boton, habilitado por defecto). Motivo: hoy arrastrar el overlay resulta molesto porque el polling ya esta corriendo mientras se acomoda el recuadro.

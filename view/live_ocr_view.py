@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QTextEdit,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -25,20 +26,38 @@ class LiveOcrView(QWidget):
     """
 
     activate_selection_clicked = Signal()
+    toggle_transcription_clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea los widgets de la pantalla de OCR en vivo."""
         super().__init__(parent)
 
+        self.language_label = QLabel("Idioma")
         self.language_combobox = QComboBox()
         self.language_combobox.addItems(LANGUAGE_OPTIONS)
         self.language_combobox.setCurrentText("Ambos")
         self.activate_button = QPushButton("Activar selección")
         self.activate_button.clicked.connect(self.activate_selection_clicked)
+        self.transcription_button = QPushButton("Iniciar transcripción")
+        self.transcription_button.setEnabled(False)
+        self.transcription_button.clicked.connect(self.toggle_transcription_clicked)
+
+        language_layout = QVBoxLayout()
+        language_layout.addWidget(self.language_label)
+        language_layout.addWidget(self.language_combobox)
+
+        activate_layout = QVBoxLayout()
+        activate_layout.addWidget(QLabel(""))
+        activate_layout.addWidget(self.activate_button)
+
+        transcription_layout = QVBoxLayout()
+        transcription_layout.addWidget(QLabel(""))
+        transcription_layout.addWidget(self.transcription_button)
 
         toolbar = QHBoxLayout()
-        toolbar.addWidget(self.language_combobox)
-        toolbar.addWidget(self.activate_button)
+        toolbar.addLayout(language_layout)
+        toolbar.addLayout(activate_layout)
+        toolbar.addLayout(transcription_layout)
         toolbar.addStretch()
 
         self.preview_label = QLabel("Sin captura todavía")
@@ -76,3 +95,17 @@ class LiveOcrView(QWidget):
     def disable_activate_button(self) -> None:
         """Deshabilita el botón "Activar selección"."""
         self.activate_button.setEnabled(False)
+
+    def enable_transcription_button(self) -> None:
+        """Habilita el botón de toggle de transcripción."""
+        self.transcription_button.setEnabled(True)
+
+    def disable_transcription_button(self) -> None:
+        """Deshabilita el botón de toggle de transcripción."""
+        self.transcription_button.setEnabled(False)
+
+    def set_transcription_button_running(self, running: bool) -> None:
+        """Actualiza el label del botón de toggle según si el polling corre."""
+        self.transcription_button.setText(
+            "Pausar transcripción" if running else "Iniciar transcripción"
+        )

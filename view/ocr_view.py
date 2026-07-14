@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QTextEdit,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -30,19 +31,32 @@ class OcrView(QWidget):
         super().__init__(parent)
 
         self.open_button = QPushButton("Abrir imagen")
+        self.language_label = QLabel("Idioma")
         self.language_combobox = QComboBox()
         self.language_combobox.addItems(LANGUAGE_OPTIONS)
         self.language_combobox.setCurrentText("Ambos")
         self.transcribe_button = QPushButton("Transcribir")
         self.transcribe_button.setEnabled(False)
 
+        open_layout = QVBoxLayout()
+        open_layout.addWidget(QLabel(""))
+        open_layout.addWidget(self.open_button)
+
         left_toolbar = QHBoxLayout()
-        left_toolbar.addWidget(self.open_button)
+        left_toolbar.addLayout(open_layout)
         left_toolbar.addStretch()
 
+        language_layout = QVBoxLayout()
+        language_layout.addWidget(self.language_label)
+        language_layout.addWidget(self.language_combobox)
+
+        transcribe_layout = QVBoxLayout()
+        transcribe_layout.addWidget(QLabel(""))
+        transcribe_layout.addWidget(self.transcribe_button)
+
         right_toolbar = QHBoxLayout()
-        right_toolbar.addWidget(self.language_combobox)
-        right_toolbar.addWidget(self.transcribe_button)
+        right_toolbar.addLayout(language_layout)
+        right_toolbar.addLayout(transcribe_layout)
         right_toolbar.addStretch()
 
         self.preview_label = QLabel("Sin imagen cargada")
