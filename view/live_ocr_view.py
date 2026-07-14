@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 LANGUAGE_OPTIONS = ["Español", "Inglés", "Ambos"]
+TRANSLATION_LANGUAGE_OPTIONS = ["Español", "Inglés"]
 
 
 class LiveOcrView(QWidget):
@@ -27,6 +28,7 @@ class LiveOcrView(QWidget):
 
     activate_selection_clicked = Signal()
     toggle_transcription_clicked = Signal()
+    translate_toggled = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea los widgets de la pantalla de OCR en vivo."""
@@ -65,6 +67,39 @@ class LiveOcrView(QWidget):
         toolbar.addLayout(transcription_layout)
         toolbar.addStretch()
 
+        self.source_language_label = QLabel("Traducir desde")
+        self.source_language_label.setObjectName("fieldLabel")
+        self.source_language_combobox = QComboBox()
+        self.source_language_combobox.addItems(TRANSLATION_LANGUAGE_OPTIONS)
+        source_language_layout = QVBoxLayout()
+        source_language_layout.addWidget(self.source_language_label)
+        source_language_layout.addWidget(self.source_language_combobox)
+
+        self.target_language_label = QLabel("Traducir a")
+        self.target_language_label.setObjectName("fieldLabel")
+        self.target_language_combobox = QComboBox()
+        self.target_language_combobox.addItems(TRANSLATION_LANGUAGE_OPTIONS)
+        self.target_language_combobox.setCurrentText("Inglés")
+        target_language_layout = QVBoxLayout()
+        target_language_layout.addWidget(self.target_language_label)
+        target_language_layout.addWidget(self.target_language_combobox)
+
+        self.translation_button = QPushButton("Activar traducción")
+        self.translation_button.setCheckable(True)
+        self.translation_button.clicked.connect(self.translate_toggled)
+
+        translation_spacer = QLabel("")
+        translation_spacer.setObjectName("fieldLabel")
+        translation_layout = QVBoxLayout()
+        translation_layout.addWidget(translation_spacer)
+        translation_layout.addWidget(self.translation_button)
+
+        translation_toolbar = QHBoxLayout()
+        translation_toolbar.addLayout(source_language_layout)
+        translation_toolbar.addLayout(target_language_layout)
+        translation_toolbar.addLayout(translation_layout)
+        translation_toolbar.addStretch()
+
         self.preview_label = QLabel("Sin captura todavía")
         self.preview_label.setObjectName("previewLabel")
         self.preview_label.setAlignment(Qt.AlignCenter)
@@ -73,10 +108,22 @@ class LiveOcrView(QWidget):
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
 
+        self.translation_label = QLabel("Traducción")
+        self.translation_label.setObjectName("fieldLabel")
+
+        self.translated_text_edit = QTextEdit()
+        self.translated_text_edit.setReadOnly(True)
+
+        result_layout = QVBoxLayout()
+        result_layout.addWidget(self.result_text)
+        result_layout.addWidget(self.translation_label)
+        result_layout.addWidget(self.translated_text_edit)
+
         layout = QGridLayout(self)
-        layout.addLayout(toolbar, 0, 0, 1, 2)
+        layout.addLayout(toolbar, 0, 0)
+        layout.addLayout(translation_toolbar, 0, 1)
         layout.addWidget(self.preview_label, 1, 0)
-        layout.addWidget(self.result_text, 1, 1)
+        layout.addLayout(result_layout, 1, 1)
         layout.setColumnStretch(0, 1)
         layout.setColumnStretch(1, 1)
 
@@ -114,3 +161,26 @@ class LiveOcrView(QWidget):
         self.transcription_button.setText(
             "Pausar transcripción" if running else "Iniciar transcripción"
         )
+
+    def get_source_language(self) -> str:
+        """Devuelve la opción de idioma origen de traducción seleccionada actualmente."""
+        return self.source_language_combobox.currentText()
+
+    def get_target_language(self) -> str:
+        """Devuelve la opción de idioma destino de traducción seleccionada actualmente."""
+        return self.target_language_combobox.currentText()
+
+    def set_translation_button_active(self, active: bool) -> None:
+        """Actualiza el estado marcado y el label del botón de traducción."""
+        self.translation_button.setChecked(active)
+        self.translation_button.setText(
+            "Desactivar traducción" if active else "Activar traducción"
+        )
+
+    def set_translated_text(self, text: str) -> None:
+        """Reemplaza el contenido del área de traducción con `text`."""
+        self.translated_text_edit.setPlainText(text)
+
+    def clear_translated_text(self) -> None:
+        """Vacía el área de traducción."""
+        self.translated_text_edit.clear()
