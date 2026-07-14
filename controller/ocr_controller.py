@@ -93,8 +93,7 @@ class OcrController(QObject):
 
         self.view.open_button.clicked.connect(self.on_open_image)
         self.view.transcribe_button.clicked.connect(self.on_transcribe)
-        self.view.crop_activated.connect(self.on_crop_activated)
-        self.view.crop_cleared.connect(self.on_crop_cleared)
+        self.view.crop_toggled.connect(self.on_crop_toggled)
         self.view.preview_label.installEventFilter(self)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -102,7 +101,9 @@ class OcrController(QObject):
         if watched is self.view.preview_label:
             if event.type() == QEvent.Resize:
                 self._preview_resize_timer.start(PREVIEW_RESIZE_DEBOUNCE_MS)
-            elif event.type() == QEvent.MouseButtonPress and self._crop_mode_active:
+            elif event.type() == QEvent.MouseButtonPress and (
+                self._crop_mode_active or self._crop_box is not None
+            ):
                 self._on_crop_mouse_press(event)
                 return True
             elif event.type() == QEvent.MouseMove and self._crop_drag_start is not None:
@@ -127,8 +128,9 @@ class OcrController(QObject):
             return
 
         self._crop_box = None
+        self._crop_mode_active = False
         self.view.hide_crop_rect()
-        self.view.disable_clear_crop_button()
+        self.view.update_crop_button(has_crop=False, armed=False)
 
         self._preview_source = image
         self._render_preview()
@@ -157,16 +159,23 @@ class OcrController(QObject):
         if self._crop_box is not None:
             self._redraw_crop_rect()
 
-    def on_crop_activated(self) -> None:
-        """Arma el modo recorte: el próximo arrastre sobre la vista previa define la región."""
-        self._crop_mode_active = True
-        self.view.set_crop_mode_active(True)
+    def on_crop_toggled(self) -> None:
+        """Maneja el click en el botón único de recorte.
 
-    def on_crop_cleared(self) -> None:
-        """Limpia el recorte activo y oculta el rectángulo persistente."""
-        self._crop_box = None
-        self.view.hide_crop_rect()
-        self.view.disable_clear_crop_button()
+        Si ya hay una región seleccionada, la limpia (equivalente a "Quitar
+        recorte"). Si no hay región, alterna el modo armado que espera el
+        próximo arrastre sobre la vista previa (equivalente a "Activar
+        recorte", con un segundo click para cancelar el armado).
+        """
+        if self._crop_box is not None:
+            self._crop_box = None
+            self._crop_mode_active = False
+            self.view.hide_crop_rect()
+            self.view.update_crop_button(has_crop=False, armed=False)
+            return
+
+        self._crop_mode_active = not self._crop_mode_active
+        self.view.update_crop_button(has_crop=False, armed=self._crop_mode_active)
 
     def _clamp_to_image_rect(self, point: QPointF) -> QPointF:
         """Restringe `point` (coords de `preview_label`) al área visible de la imagen."""
@@ -218,11 +227,14 @@ class OcrController(QObject):
         point = self._clamp_to_image_rect(event.position())
         rect = QRect(self._crop_drag_start.toPoint(), point.toPoint()).normalized()
         self._crop_drag_start = None
-        self._crop_mode_active = False
-        self.view.set_crop_mode_active(False)
 
         if rect.width() < CROP_MIN_SIZE or rect.height() < CROP_MIN_SIZE:
-            self.view.hide_crop_rect()
+            if self._crop_box is not None:
+                self._redraw_crop_rect()
+            else:
+                self._crop_mode_active = False
+                self.view.hide_crop_rect()
+                self.view.update_crop_button(has_crop=False, armed=False)
             return
 
         start_x, start_y = self._map_point_to_original(QPointF(rect.left(), rect.top()))
@@ -233,8 +245,9 @@ class OcrController(QObject):
             round(max(start_x, end_x)),
             round(max(start_y, end_y)),
         )
+        self._crop_mode_active = False
         self._redraw_crop_rect()
-        self.view.enable_clear_crop_button()
+        self.view.update_crop_button(has_crop=True, armed=False)
 
     def on_transcribe(self) -> None:
         """Transcribe la imagen cargada usando el idioma seleccionado en la vista."""

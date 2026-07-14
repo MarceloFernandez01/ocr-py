@@ -27,8 +27,7 @@ class OcrView(QWidget):
     conecta los eventos con el Model.
     """
 
-    crop_activated = Signal()
-    crop_cleared = Signal()
+    crop_toggled = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea los widgets de la pantalla de OCR."""
@@ -38,8 +37,6 @@ class OcrView(QWidget):
         self.crop_button = QPushButton("Activar recorte")
         self.crop_button.setObjectName("cropButton")
         self.crop_button.setCheckable(True)
-        self.clear_crop_button = QPushButton("Quitar recorte")
-        self.clear_crop_button.setEnabled(False)
         self.language_label = QLabel("Idioma")
         self.language_label.setObjectName("fieldLabel")
         self.language_combobox = QComboBox()
@@ -60,16 +57,9 @@ class OcrView(QWidget):
         crop_layout.addWidget(crop_spacer)
         crop_layout.addWidget(self.crop_button)
 
-        clear_crop_spacer = QLabel("")
-        clear_crop_spacer.setObjectName("fieldLabel")
-        clear_crop_layout = QVBoxLayout()
-        clear_crop_layout.addWidget(clear_crop_spacer)
-        clear_crop_layout.addWidget(self.clear_crop_button)
-
         left_toolbar = QHBoxLayout()
         left_toolbar.addLayout(open_layout)
         left_toolbar.addLayout(crop_layout)
-        left_toolbar.addLayout(clear_crop_layout)
         left_toolbar.addStretch()
 
         language_layout = QVBoxLayout()
@@ -95,8 +85,7 @@ class OcrView(QWidget):
         self.crop_rubber_band = QRubberBand(QRubberBand.Rectangle, self.preview_label)
         self.crop_rubber_band.hide()
 
-        self.crop_button.clicked.connect(self.crop_activated.emit)
-        self.clear_crop_button.clicked.connect(self.crop_cleared.emit)
+        self.crop_button.clicked.connect(self.crop_toggled.emit)
 
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
@@ -130,17 +119,16 @@ class OcrView(QWidget):
         """Deshabilita el botón "Transcribir"."""
         self.transcribe_button.setEnabled(False)
 
-    def enable_clear_crop_button(self) -> None:
-        """Habilita el botón "Quitar recorte"."""
-        self.clear_crop_button.setEnabled(True)
+    def update_crop_button(self, has_crop: bool, armed: bool) -> None:
+        """Actualiza el texto y el estado "checked" del botón único de recorte.
 
-    def disable_clear_crop_button(self) -> None:
-        """Deshabilita el botón "Quitar recorte"."""
-        self.clear_crop_button.setEnabled(False)
-
-    def set_crop_mode_active(self, active: bool) -> None:
-        """Refleja en `crop_button` si el próximo arrastre va a definir un recorte."""
-        self.crop_button.setChecked(active)
+        `has_crop` indica si ya existe una región seleccionada (texto "Quitar
+        recorte"); `armed` indica si el modo recorte está esperando el primer
+        arrastre sin que exista región todavía (texto "Activar recorte", pero
+        resaltado). El botón queda "checked" si hay recorte o si está armado.
+        """
+        self.crop_button.setText("Quitar recorte" if has_crop else "Activar recorte")
+        self.crop_button.setChecked(has_crop or armed)
 
     def show_crop_rect(self, rect: QRect) -> None:
         """Posiciona y muestra el rectángulo de recorte sobre `preview_label`."""

@@ -13,27 +13,31 @@ Restricciones del proyecto (definidas en `readme.md`) y decisiones técnicas cer
 - **GUI en PySide6 con skin visual estilo Metro** (tipografía Segoe UI, superficies planas, tiles, acento azul), centralizado en `view/metro_style.py` (ver `specs/06-reskin-metro.md`). Soporta tema oscuro y claro con toggle en caliente desde la vista de Configuración (ver `specs/07-menu-configuracion-sidebar.md`); default oscuro, persistido en `config.json`.
 - **Motor OCR: Tesseract vía `pytesseract`.** El usuario debe instalar Tesseract-OCR manualmente en el sistema (no se instala vía pip ni se instala automáticamente desde la app). La app detecta la ruta por PATH; si no la encuentra, pide la ruta manualmente y la persiste en `config.json`.
 - **Selector de idioma con 3 opciones fijas:** Español (`spa`), Inglés (`eng`), Ambos (`spa+eng`). Idiomas adicionales quedan para specs futuras.
-- **Fuera de alcance del MVP:** OCR en vivo/captura de pantalla, guardado del texto a archivo o historial entre sesiones, instalación automática de Tesseract, motor ICR.
+- **Fuera de alcance del MVP:** guardado del texto a archivo o historial entre sesiones, instalación automática de Tesseract, motor ICR. (OCR en vivo/captura de pantalla ya está implementado, ver specs 08-10.)
 - **El código debe estar documentado.** Cada módulo, clase y función pública lleva un docstring explicando su propósito (qué hace, parámetros y valor de retorno cuando no sean obvios). Esto tiene prioridad sobre la preferencia global de evitar comentarios/documentación innecesaria.
 
-El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado. Estructura actual del código:
+El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado. Estructura actual del código (detalle de cada módulo en su propio docstring):
 
-- `main.py` — punto de entrada; instancia `QApplication`, crea la `MainWindow` (PySide6) y corre `app.exec()`.
-- `model/config_model.py` — `load_config()` / `save_tesseract_path()` / `save_theme(theme)`, lee/escribe `config.json` (incluye clave `"theme"`, default `"dark"`).
-- `model/tesseract_locator.py` — `resolve_tesseract_path()`, detecta Tesseract por PATH o por `config.json`.
-- `model/ocr_model.py` — `transcribe(image_path, language_code, tesseract_path)`, envuelve `pytesseract`; orquesta tiling y preprocesamiento.
-- `model/image_tiling.py` — divide/downscale imágenes grandes en tiles para OCR (spec 02).
-- `model/image_preprocessing.py` — genera variantes de preprocesamiento (`numpy`/`opencv-python`) y upscaling de imágenes chicas, con selección por confianza (spec 03).
-- `view/main_window.py` — `MainWindow` (`QMainWindow`), layout horizontal con `SidebarView` (ancho fijo 200px) a la izquierda y un `QStackedWidget` de contenido a la derecha con `OcrView` (índice 0, default) y `SettingsView` (índice 1), tamaño fijo `setFixedSize(1200, 900)`. Expone `apply_theme(theme)` que reaplica paleta + stylesheet en caliente (spec 07).
-- `view/sidebar_view.py` — `SidebarView`, panel lateral persistente con botones "OCR de imágenes" y engranaje de Configuración (checkables, mutuamente excluyentes vía `_select_exclusive`), señales `ocr_selected`/`settings_selected`, placeholders deshabilitados para futuras opciones.
-- `view/ocr_view.py` — `OcrView`, widgets PySide6 del flujo de OCR (abrir imagen, idioma, transcribir, preview, resultado).
-- `view/settings_view.py` — `SettingsView`, vista de Configuración con `ThemeSwitch` (switch animado claro/oscuro, señal `theme_toggled`) y `QComboBox` deshabilitado con placeholder de motor OCR (`Tesseract` / `Claude Haiku (próximamente)`) (spec 07).
-- `view/metro_style.py` — `METRO_STYLESHEET_DARK` / `METRO_STYLESHEET_LIGHT` y `get_stylesheet(theme)`; única fuente del QSS estilo Metro (tipografía Segoe UI, superficies planas, tiles, acento `rgb(42,130,218)`), sin lógica de negocio (specs 06 y 07).
-- `view/assets/` — íconos de chevron para `QComboBox` (`chevron_down_dark.png` / `chevron_down_light.png`), uno por tema.
-- `controller/ocr_controller.py` — `OcrController` y `AppState`, conecta los widgets de `OcrView` con el Model, incluye manejo de errores (imagen inválida, Tesseract no encontrado, fallo de transcripción) vía `QMessageBox`/`QFileDialog`, y threading con `QThread` + señales para el contador de segundos en transcripciones largas.
-- `controller/settings_controller.py` — `SettingsController`, conecta `SettingsView.theme_toggled` con `save_theme()` del model y `MainWindow.apply_theme()` para el cambio en caliente (spec 07).
+- `main.py` — entry point, arranca `QApplication` + `MainWindow`.
+- `model/config_model.py` — carga/guarda `config.json` (`tesseract_path`, `theme`).
+- `model/tesseract_locator.py` — resuelve la ruta de Tesseract (PATH o config).
+- `model/ocr_model.py` — wrapper de `pytesseract`, orquesta tiling y preprocesamiento.
+- `model/image_tiling.py` — tiling/downscale de imágenes grandes (spec 02).
+- `model/image_preprocessing.py` — variantes de preprocesamiento y upscaling con selección por confianza (spec 03).
+- `model/image_diff.py` — compara capturas de pantalla para detectar cambios significativos, usado en el polling de OCR en vivo (spec 08).
+- `view/main_window.py` — `MainWindow`, sidebar + `QStackedWidget` con 3 vistas (`OcrView`, `LiveOcrView`, `SettingsView`), tamaño fijo 1200x900, `apply_theme(theme)` para tema en caliente.
+- `view/sidebar_view.py` — panel lateral persistente ("OCR de imágenes", "OCR en vivo", engranaje Configuración), señales `ocr_selected`/`live_ocr_selected`/`settings_selected`.
+- `view/ocr_view.py` — flujo de OCR sobre imágenes (abrir, idioma, recorte de región opcional vía "Activar recorte"/"Quitar recorte", transcribir, preview, resultado) (spec 10).
+- `view/live_ocr_view.py` — pantalla de OCR en vivo: activa el overlay de captura y controla el inicio/fin de la transcripción por polling (specs 08-09).
+- `view/screen_overlay.py` — overlay flotante para seleccionar el segmento de pantalla a capturar en OCR en vivo.
+- `view/settings_view.py` — vista de Configuración: `ThemeSwitch` (tema claro/oscuro en caliente) y combo deshabilitado de motor OCR.
+- `view/metro_style.py` — única fuente del QSS estilo Metro (`get_stylesheet(theme)`), sin lógica de negocio.
+- `view/assets/` — íconos de chevron para `QComboBox`, uno por tema.
+- `controller/ocr_controller.py` — conecta `OcrView` con el Model: errores vía `QMessageBox`/`QFileDialog`, threading (`QThread`) con contador de segundos, y estado de recorte `_crop_box` (mapea preview→imagen original antes de transcribir).
+- `controller/live_ocr_controller.py` — ciclo de OCR en vivo: captura de pantalla, diff (`image_diff`) para detectar cambios y disparo de transcripción por polling.
+- `controller/settings_controller.py` — conecta el toggle de tema de `SettingsView` con `save_theme()` y `MainWindow.apply_theme()`.
 - `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`, `PySide6`.
-- `config.json` — generado en runtime (no versionado, está en `.gitignore`), incluye `tesseract_path` (cuando el usuario configura una ruta manual) y `theme` (`"dark"` o `"light"`, default `"dark"`).
+- `config.json` — generado en runtime (no versionado, `.gitignore`), incluye `tesseract_path` y `theme`.
 
 No hay comandos de build/lint/test configurados en el repo (no hay `pyproject.toml` ni `Makefile`). Para correr la app: `python main.py`. Antes de asumir que existe un comando de test o lint, verificar con `ls`.
 
@@ -61,3 +65,6 @@ Cuando se implemente una feature de este proyecto, sigue este flujo en vez de es
 - `specs/05-menu-lateral-persistente.md` (`Implementado`) — menú lateral (sidebar) persistente en reemplazo de la pantalla de inicio, con `OcrView` activo por default y tamaño de ventana fijo.
 - `specs/06-reskin-metro.md` (`Implementado`) — re-skin visual estilo Metro (Segoe UI, superficies planas, tiles, acento azul) vía `view/metro_style.py`, sin cambios de layout ni funcionales.
 - `specs/07-menu-configuracion-sidebar.md` (`Implementado`) — botón de engranaje en el sidebar, vista `SettingsView` con toggle de tema claro/oscuro en caliente (persistido en `config.json`) y placeholder deshabilitado de motor OCR.
+- `specs/08-ocr-en-vivo.md` (`Aprobado`) — OCR en vivo: overlay para seleccionar segmento de pantalla, captura periódica, diff de imágenes y transcripción automática ante cambios.
+- `specs/09-live-ocr-boton-iniciar-transcripcion.md` (`Implementado`) — separa activar el overlay de iniciar la transcripción en OCR en vivo, y agrega labels de idioma.
+- `specs/10-recorte-region-ocr-imagenes.md` (`Implementado`) — recorte de región sobre la imagen antes de transcribir en OCR de imágenes ("Activar recorte"/"Quitar recorte").
