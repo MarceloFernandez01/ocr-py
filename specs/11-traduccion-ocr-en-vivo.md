@@ -1,6 +1,6 @@
 # SPEC 11 — Traducción del texto reconocido en OCR en vivo
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** `specs/08-ocr-en-vivo.md`, `specs/09-live-ocr-boton-iniciar-transcripcion.md`
 > **Date:** 2026-07-14
 > **Objective:** Agregar traducción offline (vía `argostranslate`) del texto reconocido en OCR en vivo, con selectores de idioma origen/destino y un botón toggle que mantiene sincronizado un área de texto traducido con cada nueva transcripción.
@@ -115,21 +115,21 @@ No se agregan claves a `config.json`: igual que el recorte de spec 10, el estado
 
 ## Acceptance criteria
 
-- [ ] `LiveOcrView` muestra una segunda fila con "Traducir desde", "Traducir a" (ambos Español/Inglés) y el botón "Activar traducción", alineados entre sí, debajo de la fila existente.
-- [ ] Debajo del resultado OCR aparece un área "Traducción" de solo lectura, vacía por default.
-- [ ] El botón de traducción está siempre habilitado, incluso sin texto reconocido todavía.
-- [ ] Clickear "Activar traducción" con texto reconocido ya visible traduce ese texto de inmediato y el botón pasa a "Desactivar traducción".
-- [ ] Con la traducción activa, cada nueva transcripción disparada por el polling actualiza automáticamente el área de traducción, sin necesidad de volver a clickear el botón.
-- [ ] Clickear "Desactivar traducción" detiene la actualización automática pero conserva visible el último texto traducido.
-- [ ] Si origen y destino son el mismo idioma, la traducción no falla y devuelve el texto sin cambios.
-- [ ] La primera traducción de un par de idiomas nuevo descarga el modelo de `argostranslate` automáticamente; traducciones posteriores del mismo par no vuelven a descargar.
-- [ ] Si la descarga o traducción falla (ej. sin internet), se muestra un `QMessageBox` de error y el resto del flujo de OCR en vivo (captura, transcripción, polling) sigue funcionando sin interrupciones.
-- [ ] La descarga/traducción corre en un `QThread` dedicado (`TranslationWorker`); la ventana no se congela mientras traduce.
-- [ ] Cerrar el overlay con la X o navegar afuera de "OCR en vivo" cancela cualquier traducción en curso sin dejar hilos huérfanos.
-- [ ] `OcrView` y el resto de "OCR de imágenes" (specs 01-03, 10) siguen funcionando sin regresiones.
-- [ ] MVC respetado: `view/live_ocr_view.py` no importa `argostranslate` ni contiene lógica de traducción; `model/translation_model.py` no importa PySide6; el ciclo de activar/desactivar y disparar traducciones vive en `LiveOcrController`.
-- [ ] Los controles nuevos son legibles y consistentes en ambos temas (claro/oscuro).
-- [ ] `CLAUDE.md` refleja `argostranslate` como dependencia aprobada, documenta `model/translation_model.py` y lista `specs/11-traduccion-ocr-en-vivo.md`.
+- [x] `LiveOcrView` muestra una segunda fila con "Traducir desde", "Traducir a" (ambos Español/Inglés) y el botón "Activar traducción", alineados entre sí, debajo de la fila existente.
+- [x] Debajo del resultado OCR aparece un área "Traducción" de solo lectura, vacía por default.
+- [x] El botón de traducción está siempre habilitado, incluso sin texto reconocido todavía.
+- [x] Clickear "Activar traducción" con texto reconocido ya visible traduce ese texto de inmediato y el botón pasa a "Desactivar traducción".
+- [x] Con la traducción activa, cada nueva transcripción disparada por el polling actualiza automáticamente el área de traducción, sin necesidad de volver a clickear el botón.
+- [x] Clickear "Desactivar traducción" detiene la actualización automática pero conserva visible el último texto traducido.
+- [x] Si origen y destino son el mismo idioma, la traducción no falla y devuelve el texto sin cambios.
+- [x] La primera traducción de un par de idiomas nuevo descarga el modelo de `argostranslate` automáticamente; traducciones posteriores del mismo par no vuelven a descargar.
+- [x] Si la descarga o traducción falla (ej. sin internet), se muestra un `QMessageBox` de error y el resto del flujo de OCR en vivo (captura, transcripción, polling) sigue funcionando sin interrupciones.
+- [x] La descarga/traducción corre en un `QThread` dedicado (`TranslationWorker`); la ventana no se congela mientras traduce.
+- [x] Cerrar el overlay con la X o navegar afuera de "OCR en vivo" cancela cualquier traducción en curso sin dejar hilos huérfanos.
+- [x] `OcrView` y el resto de "OCR de imágenes" (specs 01-03, 10) siguen funcionando sin regresiones.
+- [x] MVC respetado: `view/live_ocr_view.py` no importa `argostranslate` ni contiene lógica de traducción; `model/translation_model.py` no importa PySide6; el ciclo de activar/desactivar y disparar traducciones vive en `LiveOcrController`.
+- [x] Los controles nuevos son legibles y consistentes en ambos temas (claro/oscuro).
+- [x] `CLAUDE.md` refleja `argostranslate` como dependencia aprobada, documenta `model/translation_model.py` y lista `specs/11-traduccion-ocr-en-vivo.md`.
 
 ## Decisions
 
