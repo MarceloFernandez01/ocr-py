@@ -30,6 +30,18 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Cómo correr las pruebas unitarias
+
+Pruebas de integración real (sin mocks) sobre OCR y traducción: transcriben imágenes con texto conocido usando el Tesseract instalado en el sistema y traducen frases conocidas con `argostranslate`.
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests -v
+```
+
+- Si Tesseract no está instalado o no se puede localizar, los tests de OCR se saltan (`skip`) en vez de fallar.
+- Los tests de traducción es↔en descargan el modelo de `argostranslate` la primera vez (requiere internet); si la descarga falla, también se saltan con un mensaje.
+
 ## Estructura del código
 
 ```
@@ -55,4 +67,8 @@ controller/
   ocr_controller.py              # conecta eventos de la vista con el model, maneja errores y threading
   live_ocr_controller.py         # ciclo de OCR en vivo: captura, diff, transcripción por polling
   settings_controller.py         # conecta el toggle de tema con el model y con MainWindow
+tests/
+  conftest.py                    # helpers: skip si no hay Tesseract, generación de imágenes con texto
+  test_ocr_model.py               # pruebas de integración real de transcripción (Tesseract)
+  test_translation_model.py       # pruebas de integración real de traducción (argostranslate)
 ```
