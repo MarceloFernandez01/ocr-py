@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRect, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QRubberBand,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -26,11 +27,16 @@ class OcrView(QWidget):
     conecta los eventos con el Model.
     """
 
+    crop_toggled = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea los widgets de la pantalla de OCR."""
         super().__init__(parent)
 
         self.open_button = QPushButton("Abrir imagen")
+        self.crop_button = QPushButton("Activar recorte")
+        self.crop_button.setObjectName("cropButton")
+        self.crop_button.setCheckable(True)
         self.language_label = QLabel("Idioma")
         self.language_label.setObjectName("fieldLabel")
         self.language_combobox = QComboBox()
@@ -45,8 +51,15 @@ class OcrView(QWidget):
         open_layout.addWidget(open_spacer)
         open_layout.addWidget(self.open_button)
 
+        crop_spacer = QLabel("")
+        crop_spacer.setObjectName("fieldLabel")
+        crop_layout = QVBoxLayout()
+        crop_layout.addWidget(crop_spacer)
+        crop_layout.addWidget(self.crop_button)
+
         left_toolbar = QHBoxLayout()
         left_toolbar.addLayout(open_layout)
+        left_toolbar.addLayout(crop_layout)
         left_toolbar.addStretch()
 
         language_layout = QVBoxLayout()
@@ -68,6 +81,11 @@ class OcrView(QWidget):
         self.preview_label.setObjectName("previewLabel")
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setMinimumSize(1, 1)
+
+        self.crop_rubber_band = QRubberBand(QRubberBand.Rectangle, self.preview_label)
+        self.crop_rubber_band.hide()
+
+        self.crop_button.clicked.connect(self.crop_toggled.emit)
 
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
@@ -100,3 +118,23 @@ class OcrView(QWidget):
     def disable_transcribe_button(self) -> None:
         """Deshabilita el botón "Transcribir"."""
         self.transcribe_button.setEnabled(False)
+
+    def update_crop_button(self, has_crop: bool, armed: bool) -> None:
+        """Actualiza el texto y el estado "checked" del botón único de recorte.
+
+        `has_crop` indica si ya existe una región seleccionada (texto "Quitar
+        recorte"); `armed` indica si el modo recorte está esperando el primer
+        arrastre sin que exista región todavía (texto "Activar recorte", pero
+        resaltado). El botón queda "checked" si hay recorte o si está armado.
+        """
+        self.crop_button.setText("Quitar recorte" if has_crop else "Activar recorte")
+        self.crop_button.setChecked(has_crop or armed)
+
+    def show_crop_rect(self, rect: QRect) -> None:
+        """Posiciona y muestra el rectángulo de recorte sobre `preview_label`."""
+        self.crop_rubber_band.setGeometry(rect)
+        self.crop_rubber_band.show()
+
+    def hide_crop_rect(self) -> None:
+        """Oculta el rectángulo de recorte."""
+        self.crop_rubber_band.hide()

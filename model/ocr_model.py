@@ -5,7 +5,7 @@ from PIL import Image
 from pytesseract import Output
 
 from model.image_preprocessing import generate_variants
-from model.image_tiling import prepare_tiles
+from model.image_tiling import prepare_tiles, prepare_tiles_from_image
 
 
 def transcribe(image_path: str, language_code: str, tesseract_path: str | None) -> str:
@@ -42,6 +42,28 @@ def transcribe_large_image(image_path: str, language_code: str, tesseract_path: 
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
     tiles = prepare_tiles(image_path)
+    texts = [transcribe_image_variants(tile, language_code, None) for tile in tiles]
+    return "\n".join(texts)
+
+
+def transcribe_cropped_image(image: Image.Image, language_code: str, tesseract_path: str | None) -> str:
+    """Transcribe una `PIL.Image` ya recortada en memoria.
+
+    Aplica `prepare_tiles_from_image` + `transcribe_image_variants` por tile,
+    misma lógica que `transcribe_large_image` pero partiendo de una imagen ya
+    recortada en memoria en vez de leer y recortar desde `image_path`.
+
+    Args:
+        image: imagen ya recortada a transcribir.
+        language_code: código de idioma de Tesseract (`spa`, `eng` o `spa+eng`).
+        tesseract_path: ruta al ejecutable de Tesseract, o None si ya está en el PATH.
+
+    Devuelve el texto reconocido.
+    """
+    if tesseract_path is not None:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
+    tiles = prepare_tiles_from_image(image)
     texts = [transcribe_image_variants(tile, language_code, None) for tile in tiles]
     return "\n".join(texts)
 
