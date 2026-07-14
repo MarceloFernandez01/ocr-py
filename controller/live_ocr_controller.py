@@ -50,15 +50,16 @@ class LiveTranscriptionWorker(QThread):
 
 
 class LiveOcrController(QObject):
-    """Orquesta el ciclo completo de OCR en vivo: crea/destruye `ScreenOverlay`, corre el
-    `QTimer` de polling (oculta overlay -> `QScreen.grabWindow` -> muestra overlay ->
-    diff vía `model/image_diff.py` -> si cambió, dispara transcripción async con
-    `QThread`), y actualiza `LiveOcrView` con cada captura/resultado. Expone
-    `start()`/`stop()` para que `MainWindow` los invoque al navegar entre vistas.
+    """Orquesta el ciclo completo de OCR en vivo: crea/destruye `ScreenOverlay` vía
+    `activate_selection()`, arranca/detiene el `QTimer` de polling vía
+    `toggle_transcription()` (oculta overlay -> `QScreen.grabWindow` -> muestra
+    overlay -> diff vía `model/image_diff.py` -> si cambió, dispara transcripción
+    async con `QThread`), y actualiza `LiveOcrView` con cada captura/resultado.
+    Expone `stop()` para que `MainWindow` lo invoque al navegar afuera de la vista.
     """
 
     def __init__(self, view: LiveOcrView) -> None:
-        """Registra la vista y conecta el botón "Activar selección" a `start()`."""
+        """Registra la vista y conecta "Activar selección"/"Iniciar transcripción" a sus handlers."""
         super().__init__()
         self.view = view
         self._overlay: ScreenOverlay | None = None
@@ -71,32 +72,51 @@ class LiveOcrController(QObject):
         self._counter_timer = QTimer(self)
         self._counter_timer.timeout.connect(self._update_counter)
 
-        self.view.activate_selection_clicked.connect(self.start)
+        self.view.activate_selection_clicked.connect(self.activate_selection)
+        self.view.toggle_transcription_clicked.connect(self.toggle_transcription)
 
-    def start(self) -> None:
-        """Crea el overlay y arranca el polling. No-op si ya hay un overlay activo."""
+    def activate_selection(self) -> None:
+        """Crea (o recrea) el overlay en posición/tamaño default. No arranca el polling."""
         if self._overlay is not None:
-            return
+            if self._timer is not None:
+                self._timer.stop()
+                self._timer = None
+            self._counter_timer.stop()
+            self._overlay.closed.disconnect(self._on_overlay_closed)
+            self._overlay.geometry_changed.disconnect(self._poll)
+            self._overlay.close()
+            self._overlay = None
 
-        tesseract_path = resolve_tesseract_path()
-        if tesseract_path is None:
-            tesseract_path = self._prompt_tesseract_path()
-            if tesseract_path is None:
-                return
-
-        self._tesseract_path = tesseract_path
         self._previous_capture = None
 
         self._overlay = ScreenOverlay()
         self._overlay.closed.connect(self._on_overlay_closed)
         self._overlay.geometry_changed.connect(self._poll)
         self._overlay.show()
-        self.view.disable_activate_button()
 
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._poll)
-        self._timer.start(POLL_INTERVAL_MS)
-        self._poll()
+        self.view.enable_transcription_button()
+        self.view.set_transcription_button_running(False)
+
+    def toggle_transcription(self) -> None:
+        """Arranca o detiene el polling de transcripción según el estado actual del `QTimer`."""
+        if self._timer is None:
+            tesseract_path = resolve_tesseract_path()
+            if tesseract_path is None:
+                tesseract_path = self._prompt_tesseract_path()
+                if tesseract_path is None:
+                    return
+
+            self._tesseract_path = tesseract_path
+
+            self._timer = QTimer(self)
+            self._timer.timeout.connect(self._poll)
+            self._timer.start(POLL_INTERVAL_MS)
+            self._poll()
+            self.view.set_transcription_button_running(True)
+        else:
+            self._timer.stop()
+            self._timer = None
+            self.view.set_transcription_button_running(False)
 
     def stop(self) -> None:
         """Detiene el polling y cierra/destruye el overlay si estaba activo."""
@@ -120,6 +140,8 @@ class LiveOcrController(QObject):
 
         self._previous_capture = None
         self.view.enable_activate_button()
+        self.view.disable_transcription_button()
+        self.view.set_transcription_button_running(False)
 
     def _on_overlay_closed(self) -> None:
         """Detiene el polling al cerrar el overlay con la X, sin tocar el resto del estado."""
@@ -130,10 +152,12 @@ class LiveOcrController(QObject):
         self._overlay = None
         self._previous_capture = None
         self.view.enable_activate_button()
+        self.view.disable_transcription_button()
+        self.view.set_transcription_button_running(False)
 
     def _poll(self) -> None:
         """Captura el área del overlay, actualiza la miniatura y dispara transcripción si cambió."""
-        if self._overlay is None:
+        if self._overlay is None or self._timer is None:
             return
 
         capture_rect = self._overlay.capture_geometry()
