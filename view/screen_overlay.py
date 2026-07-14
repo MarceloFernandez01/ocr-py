@@ -21,6 +21,8 @@ class ScreenOverlay(QWidget):
 
     closed = Signal()
     geometry_changed = Signal()
+    interaction_started = Signal()
+    toggle_transcription_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea el overlay centrado en la pantalla con el tamaño default."""
@@ -32,6 +34,11 @@ class ScreenOverlay(QWidget):
         self._close_button.setFixedSize(20, 20)
         self._close_button.setObjectName("overlayCloseButton")
         self._close_button.clicked.connect(self._on_close_clicked)
+
+        self._toggle_button = QPushButton("▶", self)
+        self._toggle_button.setFixedSize(20, 20)
+        self._toggle_button.setObjectName("overlayToggleButton")
+        self._toggle_button.clicked.connect(self.toggle_transcription_requested)
 
         self._drag_offset: QPoint | None = None
         self._resize_handle: str | None = None
@@ -58,11 +65,23 @@ class ScreenOverlay(QWidget):
         x = screen_geometry.x() + (screen_geometry.width() - width) // 2
         y = screen_geometry.y() + (screen_geometry.height() - height) // 2
         self.setGeometry(x, y, width, height)
-        self._position_close_button()
+        self._position_buttons()
 
-    def _position_close_button(self) -> None:
-        """Ubica el botón de cierre en la esquina superior derecha."""
+    def _position_buttons(self) -> None:
+        """Ubica el botón de pausa/reanudar y el de cierre en la esquina superior derecha."""
         self._close_button.move(self.width() - self._close_button.width() - BORDER_WIDTH, BORDER_WIDTH)
+        self._toggle_button.move(
+            self._close_button.x() - self._toggle_button.width() - 4,
+            BORDER_WIDTH,
+        )
+
+    def set_running(self, running: bool) -> None:
+        """Actualiza el ícono del botón de pausa/reanudar según si la transcripción corre."""
+        self._toggle_button.setText("⏸" if running else "▶")
+
+    def set_toggle_enabled(self, enabled: bool) -> None:
+        """Habilita o deshabilita el botón de pausa/reanudar."""
+        self._toggle_button.setEnabled(enabled)
 
     def _on_close_clicked(self) -> None:
         """Cierra el overlay y emite `closed`."""
@@ -70,9 +89,9 @@ class ScreenOverlay(QWidget):
         self.closed.emit()
 
     def resizeEvent(self, event) -> None:
-        """Reposiciona el botón de cierre cuando cambia el tamaño del overlay."""
+        """Reposiciona los botones cuando cambia el tamaño del overlay."""
         super().resizeEvent(event)
-        self._position_close_button()
+        self._position_buttons()
 
     def paintEvent(self, event: QPaintEvent) -> None:
         """Dibuja el fondo semitransparente y el borde de acento con handles en las esquinas."""
@@ -119,6 +138,8 @@ class ScreenOverlay(QWidget):
             self._resize_start_pos = event.globalPosition().toPoint()
         else:
             self._drag_offset = event.globalPosition().toPoint() - self.pos()
+
+        self.interaction_started.emit()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Mueve o redimensiona el overlay mientras se arrastra el mouse."""

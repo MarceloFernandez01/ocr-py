@@ -105,6 +105,7 @@ class LiveOcrController(QObject):
         self._translation_active: bool = False
         self._translation_worker: TranslationWorker | None = None
         self._last_transcribed_text: str | None = None
+        self._interacting: bool = False
 
         self._counter_timer = QTimer(self)
         self._counter_timer.timeout.connect(self._update_counter)
@@ -120,20 +121,31 @@ class LiveOcrController(QObject):
                 self._timer.stop()
                 self._timer = None
             self._counter_timer.stop()
-            self._overlay.closed.disconnect(self._on_overlay_closed)
-            self._overlay.geometry_changed.disconnect(self._poll)
+            self._disconnect_overlay_signals()
             self._overlay.close()
             self._overlay = None
 
         self._previous_capture = None
+        self._interacting = False
 
         self._overlay = ScreenOverlay()
         self._overlay.closed.connect(self._on_overlay_closed)
-        self._overlay.geometry_changed.connect(self._poll)
+        self._overlay.geometry_changed.connect(self._on_interaction_finished)
+        self._overlay.interaction_started.connect(self._on_interaction_started)
+        self._overlay.toggle_transcription_requested.connect(self.toggle_transcription)
         self._overlay.show()
 
         self.view.enable_transcription_button()
         self.view.set_transcription_button_running(False)
+        self._overlay.set_toggle_enabled(True)
+        self._overlay.set_running(False)
+
+    def _disconnect_overlay_signals(self) -> None:
+        """Desconecta las señales del overlay vigente antes de cerrarlo/descartarlo."""
+        self._overlay.closed.disconnect(self._on_overlay_closed)
+        self._overlay.geometry_changed.disconnect(self._on_interaction_finished)
+        self._overlay.interaction_started.disconnect(self._on_interaction_started)
+        self._overlay.toggle_transcription_requested.disconnect(self.toggle_transcription)
 
     def toggle_transcription(self) -> None:
         """Arranca o detiene el polling de transcripción según el estado actual del `QTimer`."""
@@ -151,10 +163,14 @@ class LiveOcrController(QObject):
             self._timer.start(POLL_INTERVAL_MS)
             self._poll()
             self.view.set_transcription_button_running(True)
+            if self._overlay is not None:
+                self._overlay.set_running(True)
         else:
             self._timer.stop()
             self._timer = None
             self.view.set_transcription_button_running(False)
+            if self._overlay is not None:
+                self._overlay.set_running(False)
 
     def stop(self) -> None:
         """Detiene el polling y cierra/destruye el overlay si estaba activo."""
@@ -173,12 +189,12 @@ class LiveOcrController(QObject):
         self._cancel_translation_worker()
 
         if self._overlay is not None:
-            self._overlay.closed.disconnect(self._on_overlay_closed)
-            self._overlay.geometry_changed.disconnect(self._poll)
+            self._disconnect_overlay_signals()
             self._overlay.close()
             self._overlay = None
 
         self._previous_capture = None
+        self._interacting = False
         self.view.enable_activate_button()
         self.view.disable_transcription_button()
         self.view.set_transcription_button_running(False)
@@ -192,9 +208,22 @@ class LiveOcrController(QObject):
         self._cancel_translation_worker()
         self._overlay = None
         self._previous_capture = None
+        self._interacting = False
         self.view.enable_activate_button()
         self.view.disable_transcription_button()
         self.view.set_transcription_button_running(False)
+
+    def _on_interaction_started(self) -> None:
+        """Pausa la captura mientras se arrastra/redimensiona la región, sin detener el `QTimer`."""
+        self._interacting = True
+        self._counter_timer.stop()
+        self._worker = None
+
+    def _on_interaction_finished(self) -> None:
+        """Reanuda la captura al soltar la región, recapturando de inmediato si el polling corre."""
+        self._interacting = False
+        if self._timer is not None:
+            self._poll()
 
     def _cancel_translation_worker(self) -> None:
         """Descarta cualquier `TranslationWorker` en curso sin limpiar el texto ya mostrado."""
@@ -208,7 +237,7 @@ class LiveOcrController(QObject):
 
     def _poll(self) -> None:
         """Captura el área del overlay, actualiza la miniatura y dispara transcripción si cambió."""
-        if self._overlay is None or self._timer is None:
+        if self._overlay is None or self._timer is None or self._interacting:
             return
 
         capture_rect = self._overlay.capture_geometry()

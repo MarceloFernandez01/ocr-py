@@ -167,6 +167,24 @@ QPushButton#overlayCloseButton:hover {{
     background-color: rgb(200, 60, 60);
 }}
 
+QPushButton#overlayToggleButton {{
+    background-color: {ACCENT};
+    color: white;
+    border: none;
+    border-radius: 2px;
+    padding: 0px;
+    font-size: 11px;
+    font-weight: bold;
+}}
+
+QPushButton#overlayToggleButton:hover {{
+    background-color: rgb(70, 150, 230);
+}}
+
+QPushButton#overlayToggleButton:disabled {{
+    background-color: rgb(100, 100, 100);
+}}
+
 QFrame#sidebarSeparator {{
     background-color: rgb(80, 80, 80);
 }}
@@ -356,6 +374,24 @@ QPushButton#overlayCloseButton {{
 
 QPushButton#overlayCloseButton:hover {{
     background-color: rgb(200, 60, 60);
+}}
+
+QPushButton#overlayToggleButton {{
+    background-color: {ACCENT};
+    color: white;
+    border: none;
+    border-radius: 2px;
+    padding: 0px;
+    font-size: 11px;
+    font-weight: bold;
+}}
+
+QPushButton#overlayToggleButton:hover {{
+    background-color: rgb(70, 150, 230);
+}}
+
+QPushButton#overlayToggleButton:disabled {{
+    background-color: rgb(100, 100, 100);
 }}
 
 QFrame#sidebarSeparator {{
