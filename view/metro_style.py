@@ -171,6 +171,11 @@ QLabel#previewLabel {{
     border: 1px solid rgb(80, 80, 80);
 }}
 
+QLabel#fieldLabel {{
+    font-size: 11px;
+    color: rgb(180, 180, 180);
+}}
+
 QTextEdit {{
     background-color: rgb(35, 35, 35);
     color: white;
@@ -340,6 +345,11 @@ QLabel {{
 QLabel#previewLabel {{
     background-color: rgb(255, 255, 255);
     border: 1px solid rgb(200, 200, 200);
+}}
+
+QLabel#fieldLabel {{
+    font-size: 11px;
+    color: rgb(100, 100, 100);
 }}
 
 QTextEdit {{

@@ -47,12 +47,16 @@ class LiveOcrView(QWidget):
         language_layout.addWidget(self.language_label)
         language_layout.addWidget(self.language_combobox)
 
+        activate_spacer = QLabel("")
+        activate_spacer.setObjectName("fieldLabel")
         activate_layout = QVBoxLayout()
-        activate_layout.addWidget(QLabel(""))
+        activate_layout.addWidget(activate_spacer)
         activate_layout.addWidget(self.activate_button)
 
+        transcription_spacer = QLabel("")
+        transcription_spacer.setObjectName("fieldLabel")
         transcription_layout = QVBoxLayout()
-        transcription_layout.addWidget(QLabel(""))
+        transcription_layout.addWidget(transcription_spacer)
         transcription_layout.addWidget(self.transcription_button)
 
         toolbar = QHBoxLayout()

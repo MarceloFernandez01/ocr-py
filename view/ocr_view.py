@@ -32,14 +32,17 @@ class OcrView(QWidget):
 
         self.open_button = QPushButton("Abrir imagen")
         self.language_label = QLabel("Idioma")
+        self.language_label.setObjectName("fieldLabel")
         self.language_combobox = QComboBox()
         self.language_combobox.addItems(LANGUAGE_OPTIONS)
         self.language_combobox.setCurrentText("Ambos")
         self.transcribe_button = QPushButton("Transcribir")
         self.transcribe_button.setEnabled(False)
 
+        open_spacer = QLabel("")
+        open_spacer.setObjectName("fieldLabel")
         open_layout = QVBoxLayout()
-        open_layout.addWidget(QLabel(""))
+        open_layout.addWidget(open_spacer)
         open_layout.addWidget(self.open_button)
 
         left_toolbar = QHBoxLayout()
@@ -50,8 +53,10 @@ class OcrView(QWidget):
         language_layout.addWidget(self.language_label)
         language_layout.addWidget(self.language_combobox)
 
+        transcribe_spacer = QLabel("")
+        transcribe_spacer.setObjectName("fieldLabel")
         transcribe_layout = QVBoxLayout()
-        transcribe_layout.addWidget(QLabel(""))
+        transcribe_layout.addWidget(transcribe_spacer)
         transcribe_layout.addWidget(self.transcribe_button)
 
         right_toolbar = QHBoxLayout()
