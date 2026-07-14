@@ -13,6 +13,7 @@ from model.config_model import save_tesseract_path
 from model.image_diff import has_changed
 from model.ocr_model import transcribe_image_variants
 from model.tesseract_locator import resolve_tesseract_path
+from model.translation_model import translate_text
 from view.live_ocr_view import LiveOcrView
 from view.screen_overlay import ScreenOverlay
 
@@ -49,6 +50,39 @@ class LiveTranscriptionWorker(QThread):
             self.succeeded.emit(result)
 
 
+class TranslationWorker(QThread):
+    """Corre `translate_text` en un hilo aparte. Mismo patrón que
+    `LiveTranscriptionWorker`: `run()` llama al model y emite `finished(str)`
+    con el resultado o `error(str)` si `translate_text` levanta una excepción
+    (ej. sin internet en la primera descarga del modelo).
+    """
+
+    finished = Signal(str)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        text: str,
+        source_lang: str,
+        target_lang: str,
+        parent: QObject | None = None,
+    ) -> None:
+        """Guarda los parámetros de la traducción a ejecutar en `run()`."""
+        super().__init__(parent)
+        self.text = text
+        self.source_lang = source_lang
+        self.target_lang = target_lang
+
+    def run(self) -> None:
+        """Ejecuta la traducción y emite `finished` o `error` según el resultado."""
+        try:
+            result = translate_text(self.text, self.source_lang, self.target_lang)
+        except Exception as error:
+            self.error.emit(str(error))
+        else:
+            self.finished.emit(result)
+
+
 class LiveOcrController(QObject):
     """Orquesta el ciclo completo de OCR en vivo: crea/destruye `ScreenOverlay` vía
     `activate_selection()`, arranca/detiene el `QTimer` de polling vía
@@ -68,12 +102,16 @@ class LiveOcrController(QObject):
         self._worker: LiveTranscriptionWorker | None = None
         self._tesseract_path: str | None = None
         self._transcription_start: float = 0.0
+        self._translation_active: bool = False
+        self._translation_worker: TranslationWorker | None = None
+        self._last_transcribed_text: str | None = None
 
         self._counter_timer = QTimer(self)
         self._counter_timer.timeout.connect(self._update_counter)
 
         self.view.activate_selection_clicked.connect(self.activate_selection)
         self.view.toggle_transcription_clicked.connect(self.toggle_transcription)
+        self.view.translate_toggled.connect(self.on_translate_toggled)
 
     def activate_selection(self) -> None:
         """Crea (o recrea) el overlay en posición/tamaño default. No arranca el polling."""
@@ -132,6 +170,8 @@ class LiveOcrController(QObject):
             self._worker.finished.connect(self._worker.deleteLater)
             self._worker = None
 
+        self._cancel_translation_worker()
+
         if self._overlay is not None:
             self._overlay.closed.disconnect(self._on_overlay_closed)
             self._overlay.geometry_changed.disconnect(self._poll)
@@ -149,11 +189,22 @@ class LiveOcrController(QObject):
             self._timer.stop()
             self._timer = None
         self._counter_timer.stop()
+        self._cancel_translation_worker()
         self._overlay = None
         self._previous_capture = None
         self.view.enable_activate_button()
         self.view.disable_transcription_button()
         self.view.set_transcription_button_running(False)
+
+    def _cancel_translation_worker(self) -> None:
+        """Descarta cualquier `TranslationWorker` en curso sin limpiar el texto ya mostrado."""
+        if self._translation_worker is None:
+            return
+
+        self._translation_worker.finished.disconnect(self._on_translation_finished)
+        self._translation_worker.error.disconnect(self._on_translation_error)
+        self._translation_worker.finished.connect(self._translation_worker.deleteLater)
+        self._translation_worker = None
 
     def _poll(self) -> None:
         """Captura el área del overlay, actualiza la miniatura y dispara transcripción si cambió."""
@@ -214,6 +265,9 @@ class LiveOcrController(QObject):
         self._counter_timer.stop()
         self._worker = None
         self.view.set_result_text(text)
+        self._last_transcribed_text = text
+        if self._translation_active:
+            self._start_translation(text)
 
     def _on_transcription_failed(self, error_message: str) -> None:
         """Muestra el error si proviene del worker vigente; descarta fallos obsoletos."""
@@ -222,6 +276,39 @@ class LiveOcrController(QObject):
         self._counter_timer.stop()
         self._worker = None
         QMessageBox.critical(self.view, "Error al transcribir", error_message)
+
+    def on_translate_toggled(self) -> None:
+        """Alterna `_translation_active`; al activar, traduce el texto ya reconocido si existe."""
+        self._translation_active = not self._translation_active
+        self.view.set_translation_button_active(self._translation_active)
+        if self._translation_active and self._last_transcribed_text:
+            self._start_translation(self._last_transcribed_text)
+
+    def _start_translation(self, text: str) -> None:
+        """Lanza la traducción de `text` en un `QThread`, reemplazando el worker vigente."""
+        source_lang = LANGUAGE_MAP[self.view.get_source_language()]
+        target_lang = LANGUAGE_MAP[self.view.get_target_language()]
+
+        self.view.set_translated_text("Traduciendo...")
+        worker = TranslationWorker(text, source_lang, target_lang, self)
+        self._translation_worker = worker
+        worker.finished.connect(self._on_translation_finished)
+        worker.error.connect(self._on_translation_error)
+        worker.start()
+
+    def _on_translation_finished(self, translated_text: str) -> None:
+        """Muestra la traducción si proviene del worker vigente; descarta resultados obsoletos."""
+        if self.sender() is not self._translation_worker:
+            return
+        self._translation_worker = None
+        self.view.set_translated_text(translated_text)
+
+    def _on_translation_error(self, error_message: str) -> None:
+        """Muestra el error si proviene del worker vigente; el polling sigue sin interrupciones."""
+        if self.sender() is not self._translation_worker:
+            return
+        self._translation_worker = None
+        QMessageBox.critical(self.view, "Error al traducir", error_message)
 
     def _prompt_tesseract_path(self) -> str | None:
         """Pide al usuario la ruta del ejecutable de Tesseract y la persiste si es válida."""
