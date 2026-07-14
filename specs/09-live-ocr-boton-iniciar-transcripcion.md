@@ -51,18 +51,18 @@ No aplica: esta spec no introduce nuevas estructuras de datos ni cambios en `con
 
 ## Acceptance criteria
 
-- [ ] En `LiveOcrView`, al entrar a la vista sin overlay creado, "Iniciar transcripción" aparece deshabilitado.
-- [ ] Clickear "Activar selección" crea el overlay y habilita "Iniciar transcripción" (label "Iniciar transcripción"), sin arrancar el polling.
-- [ ] Mover o redimensionar el overlay antes de clickear "Iniciar transcripción" no dispara ninguna captura ni transcripción.
-- [ ] Clickear "Iniciar transcripción" arranca el polling, el botón cambia a label "Pausar transcripción", y el ciclo de captura/diff/transcripción funciona igual que antes (spec 08).
-- [ ] Clickear "Pausar transcripción" detiene el polling sin cerrar el overlay; el overlay se puede seguir moviendo/redimensionando, y el botón vuelve a label "Iniciar transcripción".
-- [ ] Clickear "Iniciar transcripción" de nuevo tras una pausa retoma el polling desde la posición/tamaño actual del overlay.
-- [ ] Clickear "Activar selección" con el overlay ya abierto lo destruye y recrea en posición/tamaño default, deteniendo cualquier polling en curso y dejando "Iniciar transcripción" habilitado en su label inicial.
-- [ ] Cerrar el overlay con la X (esté corriendo o pausado) detiene el polling, deshabilita "Iniciar transcripción" y lo deja en label "Iniciar transcripción".
-- [ ] Navegar afuera de "OCR en vivo" (`stop()`) deja el mismo estado que al cerrar con la X: overlay destruido, botón deshabilitado en label "Iniciar transcripción".
-- [ ] `OcrView` y `LiveOcrView` muestran un label "Idioma" arriba de cada selector de idioma, legible y sin romper la estética Metro en ambos temas (claro/oscuro).
-- [ ] El flujo de "OCR de imágenes" (specs 01-03) sigue funcionando sin regresiones.
-- [ ] MVC respetado: los cambios de estado de botones siguen viviendo en el Controller (la vista solo expone señales y setters, sin lógica de negocio).
+- [x] En `LiveOcrView`, al entrar a la vista sin overlay creado, "Iniciar transcripción" aparece deshabilitado.
+- [x] Clickear "Activar selección" crea el overlay y habilita "Iniciar transcripción" (label "Iniciar transcripción"), sin arrancar el polling.
+- [x] Mover o redimensionar el overlay antes de clickear "Iniciar transcripción" no dispara ninguna captura ni transcripción.
+- [x] Clickear "Iniciar transcripción" arranca el polling, el botón cambia a label "Pausar transcripción", y el ciclo de captura/diff/transcripción funciona igual que antes (spec 08).
+- [x] Clickear "Pausar transcripción" detiene el polling sin cerrar el overlay; el overlay se puede seguir moviendo/redimensionando, y el botón vuelve a label "Iniciar transcripción".
+- [x] Clickear "Iniciar transcripción" de nuevo tras una pausa retoma el polling desde la posición/tamaño actual del overlay.
+- [x] Clickear "Activar selección" con el overlay ya abierto lo destruye y recrea en posición/tamaño default, deteniendo cualquier polling en curso y dejando "Iniciar transcripción" habilitado en su label inicial.
+- [x] Cerrar el overlay con la X (esté corriendo o pausado) detiene el polling, deshabilita "Iniciar transcripción" y lo deja en label "Iniciar transcripción".
+- [x] Navegar afuera de "OCR en vivo" (`stop()`) deja el mismo estado que al cerrar con la X: overlay destruido, botón deshabilitado en label "Iniciar transcripción".
+- [x] `OcrView` y `LiveOcrView` muestran un label "Idioma" arriba de cada selector de idioma, legible y sin romper la estética Metro en ambos temas (claro/oscuro).
+- [x] El flujo de "OCR de imágenes" (specs 01-03) sigue funcionando sin regresiones.
+- [x] MVC respetado: los cambios de estado de botones siguen viviendo en el Controller (la vista solo expone señales y setters, sin lógica de negocio).
 
 ## Decisions
 
@@ -75,4 +75,4 @@ No aplica: esta spec no introduce nuevas estructuras de datos ni cambios en `con
 - **Sí:** agregar el label "Idioma" arriba de ambos selectores de idioma (`OcrView` y `LiveOcrView`) en la misma spec, aunque el objetivo central sea otro. Es un cambio chico y visual que no amerita una spec separada.
 - **No:** agregar un tercer estado visual al botón toggle (ej. color distinto para "pausado" vs "nunca iniciado"). Alcanza con alternar el texto entre dos labels; no se pidió diferenciación visual adicional.
 - **No:** persistir si la transcripción quedó pausada o corriendo al navegar fuera de "OCR en vivo". `stop()` sigue reseteando todo el estado, como ya definía spec 08.
-- **Sí:** las pruebas manuales de cada paso del plan de implementación las ejecuta el usuario, no el asistente. El asistente solo puede verificar por otros medios (lectura de código, `grep`, chequeo de imports) cuando el usuario no pueda evaluar el cambio corriendo el proyecto (ej. verificación puramente visual que requiere ver la GUI). El asistente no debe correr `python main.py` ni interactuar con la app para validar los pasos de este plan.
+- **Sí:** por defecto, las pruebas manuales de cada paso del plan de implementación las ejecuta el usuario, no el asistente; el asistente solo verifica por otros medios (lectura de código, `grep`, chequeo de imports) cuando el usuario no pueda evaluar el cambio corriendo el proyecto. Esto es el default, no una prohibición absoluta: si el usuario pide explícitamente que el asistente corra la app y valide los pasos, el asistente puede hacerlo (ej. con la skill `run`), dejando aclarado en la respuesta qué pudo verificar de forma automática y qué sigue requiriendo confirmación visual/manual del usuario.
