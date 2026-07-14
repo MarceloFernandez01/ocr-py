@@ -1,6 +1,5 @@
 futuras freatures:
 
--traducciones: traducir el texto reconocido; motor = libreria offline tipo argostranslate (sin API key). Requiere selector de idioma destino + area de texto traducido.
 -ocr con claude: motor OCR alternativo via API de Anthropic; ya hay gancho (clave "engine" en config.json y combobox deshabilitado en Settings). Requiere manejo de API key.
 -copiar / editar el resultado: boton "copiar al portapapeles" y hacer editable el result_text (hoy es read-only).
 -guardar texto a archivo: exportar el resultado a .txt.
@@ -9,4 +8,3 @@ futuras freatures:
 -ocr de PDF: extraer texto de PDFs multipagina, reutilizando el pipeline de tiling/preprocesamiento.
 -procesamiento por lotes: transcribir varias imagenes de una carpeta en una sola operacion.
 -mas idiomas de OCR / autodeteccion: ampliar el selector de 3 idiomas fijos y/o detectar el idioma automaticamente.
--recorte de region: seleccionar una zona de la imagen antes de transcribir.

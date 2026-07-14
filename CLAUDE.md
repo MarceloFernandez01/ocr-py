@@ -8,7 +8,7 @@ MVP de un aplicativo de escritorio en Python para OCR (Optical Character Recogni
 
 Restricciones del proyecto (definidas en `readme.md`) y decisiones técnicas cerradas en `specs/01-mvp-ocr-tesseract-tkinter.md`:
 
-- **Evitar módulos externos salvo que sea estrictamente necesario.** Las dependencias externas aprobadas son `pytesseract` (motor OCR), `Pillow` (decodificación de imágenes en cualquier formato para la vista previa en GUI), `numpy` y `opencv-python` (preprocesamiento de imagen para OCR sobre fondos complejos, ver `specs/03-preprocesamiento-ocr.md`) y `PySide6` (toolkit de GUI, ver `specs/04-migracion-pyside6-menu-inicio.md`). No agregar otras sin pasar antes por una spec.
+- **Evitar módulos externos salvo que sea estrictamente necesario.** Las dependencias externas aprobadas son `pytesseract` (motor OCR), `Pillow` (decodificación de imágenes en cualquier formato para la vista previa en GUI), `numpy` y `opencv-python` (preprocesamiento de imagen para OCR sobre fondos complejos, ver `specs/03-preprocesamiento-ocr.md`), `PySide6` (toolkit de GUI, ver `specs/04-migracion-pyside6-menu-inicio.md`) y `argostranslate` (traducción offline del texto reconocido en OCR en vivo, ver `specs/11-traduccion-ocr-en-vivo.md`). No agregar otras sin pasar antes por una spec.
 - **Respetar el patrón MVC** (Modelo-Vista-Controlador) en la organización del código: `model/` (lógica de OCR y config, sin importar PySide6), `view/` (ventana y widgets PySide6, sin llamar a `pytesseract` directamente), `controller/` (conecta eventos de la vista con el modelo).
 - **GUI en PySide6 con skin visual estilo Metro** (tipografía Segoe UI, superficies planas, tiles, acento azul), centralizado en `view/metro_style.py` (ver `specs/06-reskin-metro.md`). Soporta tema oscuro y claro con toggle en caliente desde la vista de Configuración (ver `specs/07-menu-configuracion-sidebar.md`); default oscuro, persistido en `config.json`.
 - **Motor OCR: Tesseract vía `pytesseract`.** El usuario debe instalar Tesseract-OCR manualmente en el sistema (no se instala vía pip ni se instala automáticamente desde la app). La app detecta la ruta por PATH; si no la encuentra, pide la ruta manualmente y la persiste en `config.json`.
@@ -25,6 +25,7 @@ El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado
 - `model/image_tiling.py` — tiling/downscale de imágenes grandes (spec 02).
 - `model/image_preprocessing.py` — variantes de preprocesamiento y upscaling con selección por confianza (spec 03).
 - `model/image_diff.py` — compara capturas de pantalla para detectar cambios significativos, usado en el polling de OCR en vivo (spec 08).
+- `model/translation_model.py` — traducción offline del texto reconocido vía `argostranslate`, con descarga on-demand del modelo de idioma (spec 11).
 - `view/main_window.py` — `MainWindow`, sidebar + `QStackedWidget` con 3 vistas (`OcrView`, `LiveOcrView`, `SettingsView`), tamaño fijo 1200x900, `apply_theme(theme)` para tema en caliente.
 - `view/sidebar_view.py` — panel lateral persistente ("OCR de imágenes", "OCR en vivo", engranaje Configuración), señales `ocr_selected`/`live_ocr_selected`/`settings_selected`.
 - `view/ocr_view.py` — flujo de OCR sobre imágenes (abrir, idioma, recorte de región opcional vía "Activar recorte"/"Quitar recorte", transcribir, preview, resultado) (spec 10).
@@ -36,7 +37,7 @@ El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado
 - `controller/ocr_controller.py` — conecta `OcrView` con el Model: errores vía `QMessageBox`/`QFileDialog`, threading (`QThread`) con contador de segundos, y estado de recorte `_crop_box` (mapea preview→imagen original antes de transcribir).
 - `controller/live_ocr_controller.py` — ciclo de OCR en vivo: captura de pantalla, diff (`image_diff`) para detectar cambios y disparo de transcripción por polling.
 - `controller/settings_controller.py` — conecta el toggle de tema de `SettingsView` con `save_theme()` y `MainWindow.apply_theme()`.
-- `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`, `PySide6`.
+- `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`, `PySide6`, `argostranslate`.
 - `config.json` — generado en runtime (no versionado, `.gitignore`), incluye `tesseract_path` y `theme`.
 
 No hay comandos de build/lint/test configurados en el repo (no hay `pyproject.toml` ni `Makefile`). Para correr la app: `python main.py`. Antes de asumir que existe un comando de test o lint, verificar con `ls`.
@@ -68,3 +69,4 @@ Cuando se implemente una feature de este proyecto, sigue este flujo en vez de es
 - `specs/08-ocr-en-vivo.md` (`Aprobado`) — OCR en vivo: overlay para seleccionar segmento de pantalla, captura periódica, diff de imágenes y transcripción automática ante cambios.
 - `specs/09-live-ocr-boton-iniciar-transcripcion.md` (`Implementado`) — separa activar el overlay de iniciar la transcripción en OCR en vivo, y agrega labels de idioma.
 - `specs/10-recorte-region-ocr-imagenes.md` (`Implementado`) — recorte de región sobre la imagen antes de transcribir en OCR de imágenes ("Activar recorte"/"Quitar recorte").
+- `specs/11-traduccion-ocr-en-vivo.md` (`Aprobado`) — traducción offline (vía `argostranslate`) del texto reconocido en OCR en vivo, con selectores de idioma origen/destino y botón toggle sincronizado con el polling.
