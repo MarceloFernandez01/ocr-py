@@ -10,6 +10,18 @@ TILE_OVERLAP_RATIO = 0.10  # 10% de solapamiento entre tiles
 
 
 def prepare_tiles(image_path: str) -> list[Image.Image]:
+    """Abre `image_path` y delega en `prepare_tiles_from_image`.
+
+    Args:
+        image_path: ruta a la imagen a preparar.
+
+    Devuelve la lista de tiles en orden de lectura (de arriba hacia abajo,
+    de izquierda a derecha).
+    """
+    return prepare_tiles_from_image(Image.open(image_path))
+
+
+def prepare_tiles_from_image(image: Image.Image) -> list[Image.Image]:
     """Aplica downscale y/o tiling según haga falta y devuelve las imágenes a transcribir.
 
     Si la imagen ya entra dentro de `MAX_DIMENSION` en ambos lados, devuelve una lista
@@ -21,12 +33,11 @@ def prepare_tiles(image_path: str) -> list[Image.Image]:
     redimensiona proporcionalmente antes de devolverlo.
 
     Args:
-        image_path: ruta a la imagen a preparar.
+        image: imagen ya cargada en memoria a preparar.
 
     Devuelve la lista de tiles en orden de lectura (de arriba hacia abajo,
     de izquierda a derecha).
     """
-    image = Image.open(image_path)
     width, height = image.size
 
     cols = min(math.ceil(width / MAX_DIMENSION), MAX_GRID) if width > MAX_DIMENSION else 1
