@@ -1,5 +1,6 @@
 futuras freatures:
 
+-en ocr por imagenes (agragar zoom (puede funcionar con la rueda del raton), conn click izquierdo selecciona el area mientras con el derecho mueve la imagen)
 -ocr con claude: motor OCR alternativo via API de Anthropic; ya hay gancho (clave "engine" en config.json y combobox deshabilitado en Settings). Requiere manejo de API key.
 -copiar / editar el resultado: boton "copiar al portapapeles" y hacer editable el result_text (hoy es read-only).
 -guardar texto a archivo: exportar el resultado a .txt.
