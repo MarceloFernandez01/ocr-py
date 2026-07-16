@@ -8,22 +8,6 @@ from model.image_preprocessing import generate_variants
 from model.image_tiling import prepare_tiles, prepare_tiles_from_image
 
 
-def transcribe(image_path: str, language_code: str, tesseract_path: str | None) -> str:
-    """Transcribe el texto de la imagen ubicada en `image_path`.
-
-    Args:
-        image_path: ruta a la imagen a transcribir.
-        language_code: código de idioma de Tesseract (`spa`, `eng` o `spa+eng`).
-        tesseract_path: ruta al ejecutable de Tesseract, o None si ya está en el PATH.
-
-    Devuelve el texto reconocido.
-    """
-    if tesseract_path is not None:
-        pytesseract.pytesseract.tesseract_cmd = tesseract_path
-
-    return pytesseract.image_to_string(image_path, lang=language_code)
-
-
 def transcribe_large_image(image_path: str, language_code: str, tesseract_path: str | None) -> str:
     """Transcribe imágenes grandes o de relación de aspecto extrema partiéndolas en tiles.
 

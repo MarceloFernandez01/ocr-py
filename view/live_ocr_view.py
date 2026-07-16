@@ -145,10 +145,6 @@ class LiveOcrView(QWidget):
         """Habilita el botón "Activar selección"."""
         self.activate_button.setEnabled(True)
 
-    def disable_activate_button(self) -> None:
-        """Deshabilita el botón "Activar selección"."""
-        self.activate_button.setEnabled(False)
-
     def enable_transcription_button(self) -> None:
         """Habilita el botón de toggle de transcripción."""
         self.transcription_button.setEnabled(True)
@@ -181,7 +177,3 @@ class LiveOcrView(QWidget):
     def set_translated_text(self, text: str) -> None:
         """Reemplaza el contenido del área de traducción con `text`."""
         self.translated_text_edit.setPlainText(text)
-
-    def clear_translated_text(self) -> None:
-        """Vacía el área de traducción."""
-        self.translated_text_edit.clear()

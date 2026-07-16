@@ -1,15 +1,14 @@
 """Conecta los eventos de OCR en vivo con el ciclo de captura, diff y transcripción."""
 
-import os
 import time
 
 import numpy as np
 from PIL import Image
 from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QFileDialog, QMessageBox
+from PySide6.QtWidgets import QMessageBox
 
-from model.config_model import save_tesseract_path
+from controller.common import COUNTER_INTERVAL_MS, LANGUAGE_MAP, processing_label, prompt_tesseract_path
 from model.image_diff import has_changed
 from model.ocr_model import transcribe_image_variants
 from model.tesseract_locator import resolve_tesseract_path
@@ -18,13 +17,6 @@ from view.live_ocr_view import LiveOcrView
 from view.screen_overlay import ScreenOverlay
 
 POLL_INTERVAL_MS = 1500
-COUNTER_INTERVAL_MS = 200
-
-LANGUAGE_MAP = {
-    "Español": "spa",
-    "Inglés": "eng",
-    "Ambos": "spa+eng",
-}
 
 
 class LiveTranscriptionWorker(QThread):
@@ -52,12 +44,12 @@ class LiveTranscriptionWorker(QThread):
 
 class TranslationWorker(QThread):
     """Corre `translate_text` en un hilo aparte. Mismo patrón que
-    `LiveTranscriptionWorker`: `run()` llama al model y emite `finished(str)`
+    `LiveTranscriptionWorker`: `run()` llama al model y emite `translated(str)`
     con el resultado o `error(str)` si `translate_text` levanta una excepción
     (ej. sin internet en la primera descarga del modelo).
     """
 
-    finished = Signal(str)
+    translated = Signal(str)
     error = Signal(str)
 
     def __init__(
@@ -80,7 +72,7 @@ class TranslationWorker(QThread):
         except Exception as error:
             self.error.emit(str(error))
         else:
-            self.finished.emit(result)
+            self.translated.emit(result)
 
 
 class LiveOcrController(QObject):
@@ -153,7 +145,7 @@ class LiveOcrController(QObject):
         if self._timer is None:
             tesseract_path = resolve_tesseract_path()
             if tesseract_path is None:
-                tesseract_path = self._prompt_tesseract_path()
+                tesseract_path = prompt_tesseract_path(self.view)
                 if tesseract_path is None:
                     return
 
@@ -231,7 +223,7 @@ class LiveOcrController(QObject):
         if self._translation_worker is None:
             return
 
-        self._translation_worker.finished.disconnect(self._on_translation_finished)
+        self._translation_worker.translated.disconnect(self._on_translation_finished)
         self._translation_worker.error.disconnect(self._on_translation_error)
         self._translation_worker.finished.connect(self._translation_worker.deleteLater)
         self._translation_worker = None
@@ -283,8 +275,7 @@ class LiveOcrController(QObject):
 
     def _update_counter(self) -> None:
         """Actualiza el contador de segundos mientras la transcripción está en curso."""
-        elapsed = int(time.monotonic() - self._transcription_start)
-        self.view.set_result_text(f"Procesando... {elapsed}s")
+        self.view.set_result_text(processing_label(self._transcription_start))
 
     def _on_transcription_succeeded(self, text: str) -> None:
         """Muestra el resultado si proviene del worker vigente; descarta resultados obsoletos."""
@@ -320,7 +311,7 @@ class LiveOcrController(QObject):
         self.view.set_translated_text("Traduciendo...")
         worker = TranslationWorker(text, source_lang, target_lang, self)
         self._translation_worker = worker
-        worker.finished.connect(self._on_translation_finished)
+        worker.translated.connect(self._on_translation_finished)
         worker.error.connect(self._on_translation_error)
         worker.start()
 
@@ -337,19 +328,6 @@ class LiveOcrController(QObject):
             return
         self._translation_worker = None
         QMessageBox.critical(self.view, "Error al traducir", error_message)
-
-    def _prompt_tesseract_path(self) -> str | None:
-        """Pide al usuario la ruta del ejecutable de Tesseract y la persiste si es válida."""
-        path, _ = QFileDialog.getOpenFileName(
-            self.view,
-            "Ubicar tesseract.exe",
-            filter="Ejecutables (*.exe)",
-        )
-        if not path or not os.path.exists(path):
-            return None
-
-        save_tesseract_path(path)
-        return path
 
     @staticmethod
     def _pixmap_to_pil(pixmap: QPixmap) -> Image.Image:

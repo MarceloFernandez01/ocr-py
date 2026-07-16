@@ -1,6 +1,5 @@
 """Conecta los eventos de la vista con la lógica del Model."""
 
-import os
 import time
 
 from PIL import Image, ImageOps
@@ -9,20 +8,13 @@ from PySide6.QtCore import QEvent, QObject, QPointF, QRect, QRectF, QThread, QTi
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
-from model.config_model import save_tesseract_path
+from controller.common import COUNTER_INTERVAL_MS, LANGUAGE_MAP, processing_label, prompt_tesseract_path
 from model.ocr_model import transcribe_cropped_image, transcribe_large_image
 from model.tesseract_locator import resolve_tesseract_path
 from view.ocr_view import OcrView
 
-COUNTER_INTERVAL_MS = 200
 PREVIEW_RESIZE_DEBOUNCE_MS = 120
 CROP_MIN_SIZE = 10
-
-LANGUAGE_MAP = {
-    "Español": "spa",
-    "Inglés": "eng",
-    "Ambos": "spa+eng",
-}
 
 
 class TranscriptionWorker(QThread):
@@ -69,7 +61,6 @@ class AppState:
     def __init__(self) -> None:
         self.image_path: str | None = None
         self.selected_language: str = "Ambos"
-        self.tesseract_ready: bool = False
         self.transcription_in_progress: bool = False
 
 
@@ -259,7 +250,7 @@ class OcrController(QObject):
         tesseract_path = resolve_tesseract_path()
 
         if tesseract_path is None:
-            tesseract_path = self._prompt_tesseract_path()
+            tesseract_path = prompt_tesseract_path(self.view)
             if tesseract_path is None:
                 return
 
@@ -289,8 +280,7 @@ class OcrController(QObject):
 
     def _update_counter(self) -> None:
         """Actualiza el contador de segundos mientras la transcripción está en curso."""
-        elapsed = int(time.monotonic() - self._transcription_start)
-        self.view.set_result_text(f"Procesando... {elapsed}s")
+        self.view.set_result_text(processing_label(self._transcription_start))
 
     def _on_transcription_succeeded(self, result: str) -> None:
         """Muestra el resultado de la transcripción al terminar con éxito."""
@@ -308,16 +298,3 @@ class OcrController(QObject):
         """Reactiva el botón "Transcribir" y limpia el estado de "en progreso"."""
         self.state.transcription_in_progress = False
         self.view.enable_transcribe_button()
-
-    def _prompt_tesseract_path(self) -> str | None:
-        """Pide al usuario la ruta del ejecutable de Tesseract y la persiste si es válida."""
-        path, _ = QFileDialog.getOpenFileName(
-            self.view,
-            "Ubicar tesseract.exe",
-            filter="Ejecutables (*.exe)",
-        )
-        if not path or not os.path.exists(path):
-            return None
-
-        save_tesseract_path(path)
-        return path
