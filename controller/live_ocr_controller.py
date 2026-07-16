@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 from PIL import Image
-from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Qt, Signal
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QMessageBox
 
@@ -19,60 +19,70 @@ from view.screen_overlay import ScreenOverlay
 POLL_INTERVAL_MS = 1500
 
 
-class LiveTranscriptionWorker(QThread):
-    """Corre `transcribe_image_variants` en un hilo aparte y emite el resultado por señal."""
+class LiveTranscriptionSignals(QObject):
+    """Señales emitidas por `LiveTranscriptionRunnable` al terminar (los `QRunnable` no tienen señales propias)."""
 
     succeeded = Signal(str)
     failed = Signal(str)
 
-    def __init__(self, image: Image.Image, language_code: str, tesseract_path: str | None, parent: QObject | None = None) -> None:
+
+class LiveTranscriptionRunnable(QRunnable):
+    """Corre `transcribe_image_variants` en un hilo del `QThreadPool` y emite el resultado por `LiveTranscriptionSignals`."""
+
+    def __init__(self, image: Image.Image, language_code: str, tesseract_path: str | None, signals: LiveTranscriptionSignals) -> None:
         """Guarda los parámetros de la transcripción a ejecutar en `run()`."""
-        super().__init__(parent)
+        super().__init__()
         self.image = image
         self.language_code = language_code
         self.tesseract_path = tesseract_path
+        self.signals = signals
 
     def run(self) -> None:
         """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado."""
         try:
             result = transcribe_image_variants(self.image, self.language_code, self.tesseract_path)
         except Exception as error:
-            self.failed.emit(str(error))
+            self.signals.failed.emit(str(error))
         else:
-            self.succeeded.emit(result)
+            self.signals.succeeded.emit(result)
 
 
-class TranslationWorker(QThread):
-    """Corre `translate_text` en un hilo aparte. Mismo patrón que
-    `LiveTranscriptionWorker`: `run()` llama al model y emite `translated(str)`
-    con el resultado o `error(str)` si `translate_text` levanta una excepción
-    (ej. sin internet en la primera descarga del modelo).
-    """
+class TranslationSignals(QObject):
+    """Señales emitidas por `TranslationRunnable` al terminar (los `QRunnable` no tienen señales propias)."""
 
     translated = Signal(str)
     error = Signal(str)
+
+
+class TranslationRunnable(QRunnable):
+    """Corre `translate_text` en un hilo del `QThreadPool`. Mismo patrón que
+    `LiveTranscriptionRunnable`: `run()` llama al model y emite `translated(str)`
+    con el resultado o `error(str)` si `translate_text` levanta una excepción
+    (ej. sin internet en la primera descarga del modelo).
+    """
 
     def __init__(
         self,
         text: str,
         source_lang: str,
         target_lang: str,
-        parent: QObject | None = None,
+        signals: TranslationSignals,
     ) -> None:
         """Guarda los parámetros de la traducción a ejecutar en `run()`."""
-        super().__init__(parent)
+        super().__init__()
         self.text = text
         self.source_lang = source_lang
         self.target_lang = target_lang
+        self.signals = signals
 
     def run(self) -> None:
-        """Ejecuta la traducción y emite `finished` o `error` según el resultado."""
+        """Ejecuta la traducción y emite `translated` o `error` según el resultado."""
         try:
             result = translate_text(self.text, self.source_lang, self.target_lang)
         except Exception as error:
-            self.error.emit(str(error))
+            self.signals.error.emit(str(error))
         else:
-            self.translated.emit(result)
+            self.signals.translated.emit(result)
 
 
 class LiveOcrController(QObject):
@@ -80,7 +90,7 @@ class LiveOcrController(QObject):
     `activate_selection()`, arranca/detiene el `QTimer` de polling vía
     `toggle_transcription()` (`QScreen.grabWindow` sobre `capture_geometry()`, que ya
     excluye el borde y la barra de controles del overlay -> diff vía
-    `model/image_diff.py` -> si cambió, dispara transcripción async con `QThread`),
+    `model/image_diff.py` -> si cambió, dispara transcripción async en el `QThreadPool` global),
     y actualiza `LiveOcrView` con cada captura/resultado.
     Expone `stop()` para que `MainWindow` lo invoque al navegar afuera de la vista.
     """
@@ -92,11 +102,11 @@ class LiveOcrController(QObject):
         self._overlay: ScreenOverlay | None = None
         self._timer: QTimer | None = None
         self._previous_capture: Image.Image | None = None
-        self._worker: LiveTranscriptionWorker | None = None
+        self._worker: LiveTranscriptionSignals | None = None
         self._tesseract_path: str | None = None
         self._transcription_start: float = 0.0
         self._translation_active: bool = False
-        self._translation_worker: TranslationWorker | None = None
+        self._translation_worker: TranslationSignals | None = None
         self._last_transcribed_text: str | None = None
         self._interacting: bool = False
 
@@ -173,11 +183,7 @@ class LiveOcrController(QObject):
 
         self._counter_timer.stop()
 
-        if self._worker is not None:
-            self._worker.succeeded.disconnect(self._on_transcription_succeeded)
-            self._worker.failed.disconnect(self._on_transcription_failed)
-            self._worker.finished.connect(self._worker.deleteLater)
-            self._worker = None
+        self._worker = None
 
         self._cancel_translation_worker()
 
@@ -219,13 +225,7 @@ class LiveOcrController(QObject):
             self._poll()
 
     def _cancel_translation_worker(self) -> None:
-        """Descarta cualquier `TranslationWorker` en curso sin limpiar el texto ya mostrado."""
-        if self._translation_worker is None:
-            return
-
-        self._translation_worker.translated.disconnect(self._on_translation_finished)
-        self._translation_worker.error.disconnect(self._on_translation_error)
-        self._translation_worker.finished.connect(self._translation_worker.deleteLater)
+        """Descarta cualquier `TranslationRunnable` en curso sin limpiar el texto ya mostrado."""
         self._translation_worker = None
 
     def _poll(self) -> None:
@@ -261,16 +261,17 @@ class LiveOcrController(QObject):
         self.view.set_preview_image(scaled)
 
     def _start_transcription(self, image: Image.Image) -> None:
-        """Lanza la transcripción de `image` en un `QThread`, reemplazando el worker vigente."""
+        """Lanza la transcripción de `image` en el `QThreadPool` global, reemplazando el worker vigente."""
         language_code = LANGUAGE_MAP[self.view.get_selected_language()]
 
         self._transcription_start = time.monotonic()
         self._update_counter()
-        worker = LiveTranscriptionWorker(image, language_code, self._tesseract_path, self)
-        self._worker = worker
-        worker.succeeded.connect(self._on_transcription_succeeded)
-        worker.failed.connect(self._on_transcription_failed)
-        worker.start()
+        signals = LiveTranscriptionSignals(self)
+        signals.succeeded.connect(self._on_transcription_succeeded)
+        signals.failed.connect(self._on_transcription_failed)
+        self._worker = signals
+        runnable = LiveTranscriptionRunnable(image, language_code, self._tesseract_path, signals)
+        QThreadPool.globalInstance().start(runnable)
         self._counter_timer.start(COUNTER_INTERVAL_MS)
 
     def _update_counter(self) -> None:
@@ -280,8 +281,10 @@ class LiveOcrController(QObject):
     def _on_transcription_succeeded(self, text: str) -> None:
         """Muestra el resultado si proviene del worker vigente; descarta resultados obsoletos."""
         if self.sender() is not self._worker:
+            self.sender().deleteLater()
             return
         self._counter_timer.stop()
+        self._worker.deleteLater()
         self._worker = None
         self.view.set_result_text(text)
         self._last_transcribed_text = text
@@ -291,8 +294,10 @@ class LiveOcrController(QObject):
     def _on_transcription_failed(self, error_message: str) -> None:
         """Muestra el error si proviene del worker vigente; descarta fallos obsoletos."""
         if self.sender() is not self._worker:
+            self.sender().deleteLater()
             return
         self._counter_timer.stop()
+        self._worker.deleteLater()
         self._worker = None
         QMessageBox.critical(self.view, "Error al transcribir", error_message)
 
@@ -304,28 +309,33 @@ class LiveOcrController(QObject):
             self._start_translation(self._last_transcribed_text)
 
     def _start_translation(self, text: str) -> None:
-        """Lanza la traducción de `text` en un `QThread`, reemplazando el worker vigente."""
+        """Lanza la traducción de `text` en el `QThreadPool` global, reemplazando el worker vigente."""
         source_lang = LANGUAGE_MAP[self.view.get_source_language()]
         target_lang = LANGUAGE_MAP[self.view.get_target_language()]
 
         self.view.set_translated_text("Traduciendo...")
-        worker = TranslationWorker(text, source_lang, target_lang, self)
-        self._translation_worker = worker
-        worker.translated.connect(self._on_translation_finished)
-        worker.error.connect(self._on_translation_error)
-        worker.start()
+        signals = TranslationSignals(self)
+        signals.translated.connect(self._on_translation_finished)
+        signals.error.connect(self._on_translation_error)
+        self._translation_worker = signals
+        runnable = TranslationRunnable(text, source_lang, target_lang, signals)
+        QThreadPool.globalInstance().start(runnable)
 
     def _on_translation_finished(self, translated_text: str) -> None:
         """Muestra la traducción si proviene del worker vigente; descarta resultados obsoletos."""
         if self.sender() is not self._translation_worker:
+            self.sender().deleteLater()
             return
+        self._translation_worker.deleteLater()
         self._translation_worker = None
         self.view.set_translated_text(translated_text)
 
     def _on_translation_error(self, error_message: str) -> None:
         """Muestra el error si proviene del worker vigente; el polling sigue sin interrupciones."""
         if self.sender() is not self._translation_worker:
+            self.sender().deleteLater()
             return
+        self._translation_worker.deleteLater()
         self._translation_worker = None
         QMessageBox.critical(self.view, "Error al traducir", error_message)
 

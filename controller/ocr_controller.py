@@ -4,7 +4,7 @@ import time
 
 from PIL import Image, ImageOps
 from PIL.ImageQt import ImageQt
-from PySide6.QtCore import QEvent, QObject, QPointF, QRect, QRectF, QThread, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QPointF, QRect, QRectF, QRunnable, QThreadPool, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
@@ -17,30 +17,35 @@ PREVIEW_RESIZE_DEBOUNCE_MS = 120
 CROP_MIN_SIZE = 10
 
 
-class TranscriptionWorker(QThread):
-    """Corre la transcripción en un hilo aparte y emite el resultado por señal."""
+class TranscriptionSignals(QObject):
+    """Señales emitidas por `TranscriptionRunnable` al terminar (los `QRunnable` no tienen señales propias)."""
 
     succeeded = Signal(str)
     failed = Signal(str)
+
+
+class TranscriptionRunnable(QRunnable):
+    """Corre la transcripción en un hilo del `QThreadPool` y emite el resultado por `TranscriptionSignals`."""
 
     def __init__(
         self,
         image_path: str,
         language_code: str,
         tesseract_path: str | None,
+        signals: TranscriptionSignals,
         cropped_image: Image.Image | None = None,
-        parent: QObject | None = None,
     ) -> None:
         """Guarda los parámetros de la transcripción a ejecutar en `run()`.
 
         Si `cropped_image` no es None, `run()` transcribe esa región recortada
         en vez de la imagen completa en `image_path`.
         """
-        super().__init__(parent)
+        super().__init__()
         self.image_path = image_path
         self.language_code = language_code
         self.tesseract_path = tesseract_path
         self.cropped_image = cropped_image
+        self.signals = signals
 
     def run(self) -> None:
         """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado."""
@@ -50,9 +55,9 @@ class TranscriptionWorker(QThread):
             else:
                 result = transcribe_large_image(self.image_path, self.language_code, self.tesseract_path)
         except Exception as error:
-            self.failed.emit(str(error))
+            self.signals.failed.emit(str(error))
         else:
-            self.succeeded.emit(result)
+            self.signals.succeeded.emit(result)
 
 
 class AppState:
@@ -77,6 +82,10 @@ class OcrController(QObject):
         self._crop_box: tuple[int, int, int, int] | None = None
         self._crop_mode_active = False
         self._crop_drag_start: QPointF | None = None
+
+        self._worker_signals = TranscriptionSignals(self)
+        self._worker_signals.succeeded.connect(self._on_transcription_succeeded)
+        self._worker_signals.failed.connect(self._on_transcription_failed)
 
         self._preview_resize_timer = QTimer(self)
         self._preview_resize_timer.setSingleShot(True)
@@ -257,7 +266,7 @@ class OcrController(QObject):
         self._start_transcription(language_code, tesseract_path)
 
     def _start_transcription(self, language_code: str, tesseract_path: str | None) -> None:
-        """Lanza la transcripción en un `QThread` y arranca el contador de segundos en vivo."""
+        """Lanza la transcripción en el `QThreadPool` global y arranca el contador de segundos en vivo."""
         self.state.transcription_in_progress = True
         self.view.disable_transcribe_button()
         self._transcription_start = time.monotonic()
@@ -266,12 +275,10 @@ class OcrController(QObject):
         if self._crop_box is not None and self._preview_source is not None:
             cropped_image = self._preview_source.crop(self._crop_box)
 
-        self._worker = TranscriptionWorker(
-            self.state.image_path, language_code, tesseract_path, cropped_image=cropped_image, parent=self
+        runnable = TranscriptionRunnable(
+            self.state.image_path, language_code, tesseract_path, self._worker_signals, cropped_image=cropped_image
         )
-        self._worker.succeeded.connect(self._on_transcription_succeeded)
-        self._worker.failed.connect(self._on_transcription_failed)
-        self._worker.start()
+        QThreadPool.globalInstance().start(runnable)
 
         self._counter_timer = QTimer(self)
         self._counter_timer.timeout.connect(self._update_counter)

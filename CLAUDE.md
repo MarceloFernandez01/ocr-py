@@ -35,7 +35,7 @@ El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado
 - `view/settings_view.py` — vista de Configuración: `ThemeSwitch` (tema claro/oscuro en caliente) y combo deshabilitado de motor OCR.
 - `view/metro_style.py` — única fuente del QSS estilo Metro (`get_stylesheet(theme)`), sin lógica de negocio.
 - `view/assets/` — íconos de chevron para `QComboBox`, uno por tema.
-- `controller/ocr_controller.py` — conecta `OcrView` con el Model: errores vía `QMessageBox`/`QFileDialog`, threading (`QThread`) con contador de segundos, y estado de recorte `_crop_box` (mapea preview→imagen original antes de transcribir).
+- `controller/ocr_controller.py` — conecta `OcrView` con el Model: errores vía `QMessageBox`/`QFileDialog`, threading (`QThreadPool`/`QRunnable`) con contador de segundos, y estado de recorte `_crop_box` (mapea preview→imagen original antes de transcribir).
 - `controller/live_ocr_controller.py` — ciclo de OCR en vivo: captura de pantalla, diff (`image_diff`) para detectar cambios y disparo de transcripción por polling.
 - `controller/settings_controller.py` — conecta el toggle de tema de `SettingsView` con `save_theme()` y `MainWindow.apply_theme()`.
 - `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`, `PySide6`, `argostranslate`.
