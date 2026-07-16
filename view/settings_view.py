@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 ENGINE_OPTIONS = ["Tesseract", "Claude Haiku (próximamente)"]
+TRANSLATION_ENGINE_OPTIONS = ["Argos Translate", "Claude Haiku (próximamente)"]
 
 TRACK_COLOR_OFF = QColor(120, 120, 120)
 TRACK_COLOR_ON = QColor(42, 130, 218)
@@ -90,9 +91,9 @@ class ThemeSwitch(QPushButton):
 
 class SettingsView(QWidget):
     """Vista de contenido con las opciones de configuración: toggle de tema
-    claro/oscuro y placeholder deshabilitado del motor OCR. No contiene
-    lógica de negocio ni persiste nada directamente; emite `theme_toggled`
-    para que el controller decida qué hacer.
+    claro/oscuro y placeholders deshabilitados de motor OCR y motor de
+    traducción. No contiene lógica de negocio ni persiste nada directamente;
+    emite `theme_toggled` para que el controller decida qué hacer.
     """
 
     theme_toggled = Signal(str)  # "dark" | "light"
@@ -116,11 +117,19 @@ class SettingsView(QWidget):
         self.engine_combobox.setCurrentIndex(0)
         self.engine_combobox.setEnabled(False)
 
+        translation_engine_label = QLabel("Motor de traducción")
+        self.translation_engine_combobox = QComboBox()
+        self.translation_engine_combobox.addItems(TRANSLATION_ENGINE_OPTIONS)
+        self.translation_engine_combobox.setCurrentIndex(0)
+        self.translation_engine_combobox.setEnabled(False)
+
         layout = QVBoxLayout(self)
         layout.addWidget(theme_label)
         layout.addLayout(theme_row)
         layout.addWidget(engine_label)
         layout.addWidget(self.engine_combobox)
+        layout.addWidget(translation_engine_label)
+        layout.addWidget(self.translation_engine_combobox)
         layout.addStretch()
 
         self.theme_switch.clicked.connect(self._on_theme_switch_clicked)
