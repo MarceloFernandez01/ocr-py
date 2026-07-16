@@ -113,9 +113,12 @@ class ScreenOverlay(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:
         """Dibuja el fondo semitransparente y el borde de acento con handles en las esquinas
         del área de selección (la barra de control con los botones queda sin pintar).
-        El tinte semitransparente se limita al anillo del borde: el interior queda sin
-        pintar (transparente) para que `grabWindow` capture el contenido real de la
-        pantalla debajo, sin necesidad de ocultar nada durante cada captura.
+        El tinte semitransparente se limita al anillo del borde: el interior se pinta con
+        alfa casi nulo (imperceptible) en vez de dejarlo sin pintar, porque en Windows una
+        ventana `WA_TranslucentBackground` enruta los clicks a la ventana de abajo en los
+        píxeles con alfa 0, lo que impedía arrastrar el overlay desde el interior del
+        rectángulo. Con alfa 1 el contenido real de la pantalla sigue siendo visible para
+        `grabWindow`, pero el overlay recibe los eventos de mouse en toda su área.
         """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -126,6 +129,7 @@ class ScreenOverlay(QWidget):
         painter.setClipRegion(border_region)
         painter.fillRect(selection, QColor(0, 0, 0, 40))
         painter.setClipping(False)
+        painter.fillRect(inner, QColor(0, 0, 0, 1))
 
         pen = QPen(ACCENT_COLOR, BORDER_WIDTH)
         painter.setPen(pen)
