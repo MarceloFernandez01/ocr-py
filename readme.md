@@ -72,3 +72,11 @@ tests/
   test_ocr_model.py               # pruebas de integración real de transcripción (Tesseract)
   test_translation_model.py       # pruebas de integración real de traducción (argostranslate)
 ```
+
+## Créditos
+
+El OCR lo hace [Tesseract](https://github.com/tesseract-ocr/tesseract) (licencia Apache-2.0); esta app aporta la GUI, el preprocesamiento de imágenes y la orquestación alrededor.
+
+## Licencia
+
+[MIT](LICENSE)
