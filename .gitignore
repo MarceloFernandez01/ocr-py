@@ -3,6 +3,9 @@
 __pycache__/
 *.pyc
 config.json
+build/
+dist/
+*.spec
 claude-ocr-idea.txt
 canvas.png
 futuras specs.txt

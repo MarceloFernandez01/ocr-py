@@ -189,6 +189,10 @@ QFrame#sidebarSeparator {{
     background-color: rgb(80, 80, 80);
 }}
 
+QLabel#sidebarLogo {{
+    background-color: transparent;
+}}
+
 QLabel {{
     background-color: transparent;
     font-size: 13px;
@@ -446,6 +450,10 @@ QPushButton#overlayToggleButton:disabled {{
 
 QFrame#sidebarSeparator {{
     background-color: rgb(200, 200, 200);
+}}
+
+QLabel#sidebarLogo {{
+    background-color: transparent;
 }}
 
 QLabel {{

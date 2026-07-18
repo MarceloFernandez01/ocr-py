@@ -106,6 +106,7 @@ class MainWindow(QMainWindow):
             palette.setColor(role, color)
         self.setPalette(palette)
         self.setStyleSheet(get_stylesheet(theme))
+        self.sidebar_view.set_theme(theme)
 
     def _show_ocr_view(self) -> None:
         """Cambia el contenido de la ventana a la pantalla de OCR, deteniendo OCR en vivo."""
