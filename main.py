@@ -14,6 +14,8 @@ def main() -> None:
     window = MainWindow()
     controller = OcrController(window.ocr_view)  # referencia viva: sin esto Python lo recolecta y desconecta las señales
     window.show()
+    window.raise_()
+    window.activateWindow()
     sys.exit(app.exec())
 
 

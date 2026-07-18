@@ -1,7 +1,11 @@
-"""Traducción offline del texto reconocido mediante `argostranslate`."""
+"""Traducción offline del texto reconocido mediante `argostranslate`.
 
-import argostranslate.package
-import argostranslate.translate
+Los imports de `argostranslate` son diferidos (dentro de cada función) porque
+`argostranslate.translate` tarda ~2.5s en importarse, y este módulo se
+importa transitivamente al construir `MainWindow`: un import a nivel de
+módulo agregaría ese costo a cada arranque de la app aunque nunca se use
+la traducción.
+"""
 
 LANGUAGE_CODE_MAP = {
     "spa": "es",
@@ -17,6 +21,9 @@ def _ensure_package_installed(source_code: str, target_code: str) -> None:
     Busca en los paquetes ya instalados; si no está, lo busca entre los
     disponibles remotamente, lo descarga e instala.
     """
+    import argostranslate.package
+    import argostranslate.translate
+
     installed_languages = argostranslate.translate.get_installed_languages()
     installed_codes = {lang.code for lang in installed_languages}
     if source_code in installed_codes and target_code in installed_codes:
@@ -47,6 +54,8 @@ def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     """
     if source_lang == target_lang:
         return text
+
+    import argostranslate.translate
 
     source_code = LANGUAGE_CODE_MAP[source_lang]
     target_code = LANGUAGE_CODE_MAP[target_lang]
