@@ -77,14 +77,18 @@ QPushButton#sidebarTile:disabled {{
     color: rgb(130, 130, 130);
 }}
 
-QPushButton#cropButton:checked {{
+QPushButton#translationButton:checked {{
     background-color: {ACCENT};
     color: white;
 }}
 
-QPushButton#translationButton:checked {{
-    background-color: {ACCENT};
+QPushButton#resetZoomButton {{
+    background-color: rgb(68, 68, 68);
     color: white;
+    border: none;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: normal;
 }}
 
 QPushButton#settingsTile {{
@@ -201,6 +205,15 @@ QLabel {{
 QLabel#previewLabel {{
     background-color: rgb(35, 35, 35);
     border: 1px solid rgb(80, 80, 80);
+}}
+
+QLabel#zoomLabel {{
+    background-color: rgba(20, 20, 20, 180);
+    color: white;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: bold;
 }}
 
 QRubberBand {{
@@ -338,14 +351,18 @@ QPushButton#sidebarTile:disabled {{
     color: rgb(160, 160, 160);
 }}
 
-QPushButton#cropButton:checked {{
+QPushButton#translationButton:checked {{
     background-color: {ACCENT};
     color: white;
 }}
 
-QPushButton#translationButton:checked {{
-    background-color: {ACCENT};
-    color: white;
+QPushButton#resetZoomButton {{
+    background-color: rgb(225, 225, 225);
+    color: rgb(20, 20, 20);
+    border: none;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: normal;
 }}
 
 QPushButton#settingsTile {{
@@ -464,6 +481,15 @@ QLabel {{
 QLabel#previewLabel {{
     background-color: rgb(255, 255, 255);
     border: 1px solid rgb(200, 200, 200);
+}}
+
+QLabel#zoomLabel {{
+    background-color: rgba(20, 20, 20, 180);
+    color: white;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: bold;
 }}
 
 QRubberBand {{

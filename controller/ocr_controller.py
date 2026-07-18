@@ -2,9 +2,9 @@
 
 import time
 
-from PIL import Image, ImageOps
+from PIL import Image
 from PIL.ImageQt import ImageQt
-from PySide6.QtCore import QEvent, QObject, QPointF, QRect, QRectF, QRunnable, QThreadPool, QTimer, Signal
+from PySide6.QtCore import Qt, QEvent, QObject, QPointF, QRect, QRectF, QRunnable, QThreadPool, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
@@ -15,6 +15,24 @@ from view.ocr_view import OcrView
 
 PREVIEW_RESIZE_DEBOUNCE_MS = 120
 CROP_MIN_SIZE = 10
+
+ZOOM_MIN = 1.0
+ZOOM_MAX = 5.0
+ZOOM_STEP = 1.25
+"""Factor de zoom relativo a la imagen ajustada a `preview_label` (1.0 = fit
+actual, igual que el comportamiento previo a esta spec). Cada notch de rueda
+multiplica o divide `_zoom` por `ZOOM_STEP`, clampeado a [ZOOM_MIN, ZOOM_MAX]."""
+
+
+def _fit_within_box(source_size: tuple[int, int], box_size: tuple[int, int]) -> tuple[int, int]:
+    """Calcula el tamaño resultante de ajustar `source_size` dentro de `box_size` preservando la relación de aspecto."""
+    source_width, source_height = source_size
+    box_width, box_height = box_size
+    source_ratio = source_width / source_height
+    box_ratio = box_width / box_height
+    if source_ratio > box_ratio:
+        return box_width, max(1, round(source_height / source_width * box_width))
+    return max(1, round(source_width / source_height * box_height)), box_height
 
 
 class TranscriptionSignals(QObject):
@@ -80,8 +98,12 @@ class OcrController(QObject):
         self._preview_source: Image.Image | None = None
         self._preview_image_rect = QRectF()
         self._crop_box: tuple[int, int, int, int] | None = None
-        self._crop_mode_active = False
         self._crop_drag_start: QPointF | None = None
+
+        self._zoom: float = 1.0
+        self._zoom_center: tuple[float, float] | None = None
+        self._pan_drag_start: QPointF | None = None
+        self._pan_start_center: tuple[float, float] | None = None
 
         self._worker_signals = TranscriptionSignals(self)
         self._worker_signals.succeeded.connect(self._on_transcription_succeeded)
@@ -94,25 +116,99 @@ class OcrController(QObject):
         self.view.open_button.clicked.connect(self.on_open_image)
         self.view.transcribe_button.clicked.connect(self.on_transcribe)
         self.view.crop_toggled.connect(self.on_crop_toggled)
+        self.view.reset_zoom_button.clicked.connect(self.on_reset_zoom)
         self.view.preview_label.installEventFilter(self)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        """Reprograma el reescalado de la vista previa y maneja el arrastre de recorte."""
+        """Reprograma el reescalado de la vista previa y maneja zoom, paneo y arrastre de recorte."""
         if watched is self.view.preview_label:
             if event.type() == QEvent.Resize:
                 self._preview_resize_timer.start(PREVIEW_RESIZE_DEBOUNCE_MS)
-            elif event.type() == QEvent.MouseButtonPress and (
-                self._crop_mode_active or self._crop_box is not None
-            ):
+            elif event.type() == QEvent.Wheel:
+                self._on_wheel_zoom(event)
+                return True
+            elif event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
+                self._on_pan_mouse_press(event)
+                return True
+            elif event.type() == QEvent.MouseButtonPress:
                 self._on_crop_mouse_press(event)
+                return True
+            elif event.type() == QEvent.MouseMove and self._pan_drag_start is not None:
+                self._on_pan_mouse_move(event)
                 return True
             elif event.type() == QEvent.MouseMove and self._crop_drag_start is not None:
                 self._on_crop_mouse_move(event)
+                return True
+            elif event.type() == QEvent.MouseButtonRelease and event.button() == Qt.RightButton:
+                self._on_pan_mouse_release(event)
                 return True
             elif event.type() == QEvent.MouseButtonRelease and self._crop_drag_start is not None:
                 self._on_crop_mouse_release(event)
                 return True
         return super().eventFilter(watched, event)
+
+    def _on_wheel_zoom(self, event) -> None:
+        """Aplica un paso de zoom centrado en el punto de la imagen original bajo el cursor."""
+        if self._preview_source is None:
+            return
+
+        point = event.position()
+        if not self._preview_image_rect.contains(point):
+            return
+
+        anchor_x, anchor_y = self._map_point_to_original(point)
+
+        if event.angleDelta().y() > 0:
+            new_zoom = self._zoom * ZOOM_STEP
+        else:
+            new_zoom = self._zoom / ZOOM_STEP
+        self._zoom = max(ZOOM_MIN, min(ZOOM_MAX, new_zoom))
+
+        original_width, original_height = self._preview_source.size
+        new_region_width = original_width / self._zoom
+        new_region_height = original_height / self._zoom
+
+        rect = self._preview_image_rect
+        fraction_x = (point.x() - rect.x()) / rect.width() if rect.width() else 0.5
+        fraction_y = (point.y() - rect.y()) / rect.height() if rect.height() else 0.5
+
+        new_region_left = anchor_x - fraction_x * new_region_width
+        new_region_top = anchor_y - fraction_y * new_region_height
+
+        self._zoom_center = (
+            new_region_left + new_region_width / 2,
+            new_region_top + new_region_height / 2,
+        )
+        self._render_preview()
+
+    def _on_pan_mouse_press(self, event) -> None:
+        """Guarda el punto inicial del arrastre de paneo con click derecho."""
+        if self._preview_source is None:
+            return
+        self._pan_drag_start = event.position()
+        self._pan_start_center = self._zoom_center
+
+    def _on_pan_mouse_move(self, event) -> None:
+        """Desplaza `self._zoom_center` según el arrastre acumulado desde el inicio del paneo."""
+        delta = event.position() - self._pan_drag_start
+        rect = self._preview_image_rect
+        left, top, right, bottom = self._current_visible_region()
+        region_width = right - left
+        region_height = bottom - top
+        scale_x = region_width / rect.width() if rect.width() else 1.0
+        scale_y = region_height / rect.height() if rect.height() else 1.0
+
+        start_x, start_y = self._pan_start_center
+        self._zoom_center = (
+            start_x - delta.x() * scale_x,
+            start_y - delta.y() * scale_y,
+        )
+        self._render_preview()
+
+    def _on_pan_mouse_release(self, event) -> None:
+        """Finaliza el arrastre de paneo con click derecho."""
+        self._pan_drag_start = None
+        self._pan_start_center = None
 
     def on_open_image(self) -> None:
         """Abre un diálogo de selección de archivo, carga la imagen y actualiza la vista previa."""
@@ -128,17 +224,43 @@ class OcrController(QObject):
             return
 
         self._crop_box = None
-        self._crop_mode_active = False
         self.view.hide_crop_rect()
-        self.view.update_crop_button(has_crop=False, armed=False)
+        self.view.update_crop_button(has_crop=False)
 
         self._preview_source = image
+        self._zoom = 1.0
+        self._zoom_center = (image.width / 2, image.height / 2)
         self._render_preview()
         self.state.image_path = path
         self.view.enable_transcribe_button()
 
+    def _current_visible_region(self) -> tuple[float, float, float, float]:
+        """Calcula (left, top, right, bottom) en coordenadas de la imagen original
+        que representan la región actualmente visible en `preview_label`, según
+        `self._zoom` y `self._zoom_center`. El tamaño de la región es
+        (original_width / zoom, original_height / zoom); el centro se clampea
+        para que la región completa quede dentro de los límites de la imagen
+        (mismo mecanismo que ya clampea el recorte, aplicado acá a la cámara)."""
+        original_width, original_height = self._preview_source.size
+        region_width = original_width / self._zoom
+        region_height = original_height / self._zoom
+
+        center_x, center_y = self._zoom_center
+        half_width = region_width / 2
+        half_height = region_height / 2
+
+        center_x = max(half_width, min(original_width - half_width, center_x))
+        center_y = max(half_height, min(original_height - half_height, center_y))
+
+        return (
+            center_x - half_width,
+            center_y - half_height,
+            center_x + half_width,
+            center_y + half_height,
+        )
+
     def _render_preview(self) -> None:
-        """Reescala la imagen fuente al tamaño actual del recuadro de vista previa."""
+        """Recorta la región visible (según zoom/paneo) y la reescala al recuadro fijo de vista previa."""
         if self._preview_source is None:
             return
 
@@ -147,35 +269,40 @@ class OcrController(QObject):
         if width <= 1 or height <= 1:
             return
 
-        fitted = ImageOps.contain(self._preview_source, (width, height))
-        pixmap = QPixmap.fromImage(ImageQt(fitted.convert("RGBA")))
-        self.view.set_preview_image(pixmap)
-
-        fitted_width, fitted_height = fitted.size
+        original_width, original_height = self._preview_source.size
+        fitted_width, fitted_height = _fit_within_box((original_width, original_height), (width, height))
         offset_x = (width - fitted_width) / 2
         offset_y = (height - fitted_height) / 2
         self._preview_image_rect = QRectF(offset_x, offset_y, fitted_width, fitted_height)
 
+        left, top, right, bottom = self._current_visible_region()
+        region = self._preview_source.crop((round(left), round(top), round(right), round(bottom)))
+        rendered = region.resize((fitted_width, fitted_height))
+        pixmap = QPixmap.fromImage(ImageQt(rendered.convert("RGBA")))
+        self.view.set_preview_image(pixmap)
+
         if self._crop_box is not None:
             self._redraw_crop_rect()
 
+        self.view.position_zoom_label()
+        if self._zoom != 1.0:
+            self.view.set_zoom_label(f"{int(self._zoom * 100)}%")
+        else:
+            self.view.hide_zoom_label()
+
     def on_crop_toggled(self) -> None:
-        """Maneja el click en el botón único de recorte.
+        """Maneja el click en "Quitar recorte": limpia la región seleccionada."""
+        self._crop_box = None
+        self.view.hide_crop_rect()
+        self.view.update_crop_button(has_crop=False)
 
-        Si ya hay una región seleccionada, la limpia (equivalente a "Quitar
-        recorte"). Si no hay región, alterna el modo armado que espera el
-        próximo arrastre sobre la vista previa (equivalente a "Activar
-        recorte", con un segundo click para cancelar el armado).
-        """
-        if self._crop_box is not None:
-            self._crop_box = None
-            self._crop_mode_active = False
-            self.view.hide_crop_rect()
-            self.view.update_crop_button(has_crop=False, armed=False)
+    def on_reset_zoom(self) -> None:
+        """Restablece el zoom y el paneo al estado inicial (imagen completa ajustada)."""
+        if self._preview_source is None:
             return
-
-        self._crop_mode_active = not self._crop_mode_active
-        self.view.update_crop_button(has_crop=False, armed=self._crop_mode_active)
+        self._zoom = 1.0
+        self._zoom_center = (self._preview_source.width / 2, self._preview_source.height / 2)
+        self._render_preview()
 
     def _clamp_to_image_rect(self, point: QPointF) -> QPointF:
         """Restringe `point` (coords de `preview_label`) al área visible de la imagen."""
@@ -185,26 +312,30 @@ class OcrController(QObject):
         return QPointF(x, y)
 
     def _map_point_to_original(self, point: QPointF) -> tuple[float, float]:
-        """Mapea un punto en coords de `preview_label` a coords de la imagen original."""
+        """Mapea un punto en coords de `preview_label` a coords de la imagen original, según la región visible actual."""
         rect = self._preview_image_rect
-        original_width, original_height = self._preview_source.size
-        scale_x = original_width / rect.width() if rect.width() else 1.0
-        scale_y = original_height / rect.height() if rect.height() else 1.0
-        x = max(0.0, min(original_width, (point.x() - rect.x()) * scale_x))
-        y = max(0.0, min(original_height, (point.y() - rect.y()) * scale_y))
+        region_left, region_top, region_right, region_bottom = self._current_visible_region()
+        region_width = region_right - region_left
+        region_height = region_bottom - region_top
+        scale_x = region_width / rect.width() if rect.width() else 1.0
+        scale_y = region_height / rect.height() if rect.height() else 1.0
+        x = region_left + max(0.0, min(region_width, (point.x() - rect.x()) * scale_x))
+        y = region_top + max(0.0, min(region_height, (point.y() - rect.y()) * scale_y))
         return x, y
 
     def _redraw_crop_rect(self) -> None:
-        """Reposiciona el rectángulo de recorte persistente según el render actual de la preview."""
+        """Reposiciona el rectángulo de recorte persistente según la región visible actual."""
         rect = self._preview_image_rect
-        original_width, original_height = self._preview_source.size
-        scale_x = rect.width() / original_width if original_width else 1.0
-        scale_y = rect.height() / original_height if original_height else 1.0
+        region_left, region_top, region_right, region_bottom = self._current_visible_region()
+        region_width = region_right - region_left
+        region_height = region_bottom - region_top
+        scale_x = rect.width() / region_width if region_width else 1.0
+        scale_y = rect.height() / region_height if region_height else 1.0
         left, top, right, bottom = self._crop_box
 
         preview_rect = QRect(
-            round(rect.x() + left * scale_x),
-            round(rect.y() + top * scale_y),
+            round(rect.x() + (left - region_left) * scale_x),
+            round(rect.y() + (top - region_top) * scale_y),
             round((right - left) * scale_x),
             round((bottom - top) * scale_y),
         )
@@ -232,9 +363,8 @@ class OcrController(QObject):
             if self._crop_box is not None:
                 self._redraw_crop_rect()
             else:
-                self._crop_mode_active = False
                 self.view.hide_crop_rect()
-                self.view.update_crop_button(has_crop=False, armed=False)
+                self.view.update_crop_button(has_crop=False)
             return
 
         start_x, start_y = self._map_point_to_original(QPointF(rect.left(), rect.top()))
@@ -245,9 +375,8 @@ class OcrController(QObject):
             round(max(start_x, end_x)),
             round(max(start_y, end_y)),
         )
-        self._crop_mode_active = False
         self._redraw_crop_rect()
-        self.view.update_crop_button(has_crop=True, armed=False)
+        self.view.update_crop_button(has_crop=True)
 
     def on_transcribe(self) -> None:
         """Transcribe la imagen cargada usando el idioma seleccionado en la vista."""

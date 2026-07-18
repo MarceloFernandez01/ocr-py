@@ -34,9 +34,11 @@ class OcrView(QWidget):
         super().__init__(parent)
 
         self.open_button = QPushButton("Abrir imagen")
-        self.crop_button = QPushButton("Activar recorte")
+        self.crop_button = QPushButton("Quitar recorte")
         self.crop_button.setObjectName("cropButton")
-        self.crop_button.setCheckable(True)
+        self.crop_button.setEnabled(False)
+        self.reset_zoom_button = QPushButton("Restablecer zoom")
+        self.reset_zoom_button.setObjectName("resetZoomButton")
         self.language_label = QLabel("Idioma")
         self.language_label.setObjectName("fieldLabel")
         self.language_combobox = QComboBox()
@@ -57,9 +59,16 @@ class OcrView(QWidget):
         crop_layout.addWidget(crop_spacer)
         crop_layout.addWidget(self.crop_button)
 
+        reset_zoom_spacer = QLabel("")
+        reset_zoom_spacer.setObjectName("fieldLabel")
+        reset_zoom_layout = QVBoxLayout()
+        reset_zoom_layout.addWidget(reset_zoom_spacer)
+        reset_zoom_layout.addWidget(self.reset_zoom_button)
+
         left_toolbar = QHBoxLayout()
         left_toolbar.addLayout(open_layout)
         left_toolbar.addLayout(crop_layout)
+        left_toolbar.addLayout(reset_zoom_layout)
         left_toolbar.addStretch()
 
         language_layout = QVBoxLayout()
@@ -81,9 +90,14 @@ class OcrView(QWidget):
         self.preview_label.setObjectName("previewLabel")
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setMinimumSize(1, 1)
+        self.preview_label.setContextMenuPolicy(Qt.NoContextMenu)
 
         self.crop_rubber_band = QRubberBand(QRubberBand.Rectangle, self.preview_label)
         self.crop_rubber_band.hide()
+
+        self.zoom_label = QLabel(self.preview_label)
+        self.zoom_label.setObjectName("zoomLabel")
+        self.zoom_label.hide()
 
         self.crop_button.clicked.connect(self.crop_toggled.emit)
 
@@ -119,16 +133,9 @@ class OcrView(QWidget):
         """Deshabilita el botón "Transcribir"."""
         self.transcribe_button.setEnabled(False)
 
-    def update_crop_button(self, has_crop: bool, armed: bool) -> None:
-        """Actualiza el texto y el estado "checked" del botón único de recorte.
-
-        `has_crop` indica si ya existe una región seleccionada (texto "Quitar
-        recorte"); `armed` indica si el modo recorte está esperando el primer
-        arrastre sin que exista región todavía (texto "Activar recorte", pero
-        resaltado). El botón queda "checked" si hay recorte o si está armado.
-        """
-        self.crop_button.setText("Quitar recorte" if has_crop else "Activar recorte")
-        self.crop_button.setChecked(has_crop or armed)
+    def update_crop_button(self, has_crop: bool) -> None:
+        """Habilita o deshabilita el botón "Quitar recorte" según `has_crop`."""
+        self.crop_button.setEnabled(has_crop)
 
     def show_crop_rect(self, rect: QRect) -> None:
         """Posiciona y muestra el rectángulo de recorte sobre `preview_label`."""
@@ -138,3 +145,21 @@ class OcrView(QWidget):
     def hide_crop_rect(self) -> None:
         """Oculta el rectángulo de recorte."""
         self.crop_rubber_band.hide()
+
+    def set_zoom_label(self, text: str) -> None:
+        """Setea el texto del indicador de zoom flotante y lo muestra."""
+        self.zoom_label.setText(text)
+        self.zoom_label.adjustSize()
+        self.position_zoom_label()
+        self.zoom_label.show()
+
+    def hide_zoom_label(self) -> None:
+        """Oculta el indicador de zoom flotante."""
+        self.zoom_label.hide()
+
+    def position_zoom_label(self) -> None:
+        """Reposiciona el indicador de zoom en la esquina inferior derecha de `preview_label`."""
+        margin = 8
+        x = self.preview_label.width() - self.zoom_label.width() - margin
+        y = self.preview_label.height() - self.zoom_label.height() - margin
+        self.zoom_label.move(max(0, x), max(0, y))
