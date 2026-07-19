@@ -106,20 +106,20 @@ Cada paso deja la app en un estado ejecutable con `python main.py`, sin regresio
 
 ## Acceptance criteria
 
-- [ ] `requirements.txt` incluye `anthropic` y `keyring`; `CLAUDE.md` documenta ambas como dependencias externas aprobadas.
-- [ ] El combobox "Motor OCR" en Configuración deja elegir entre "Tesseract" y "Claude Haiku" (ya no está deshabilitado).
-- [ ] Al seleccionar "Claude Haiku" sin una API key guardada, la app bloquea la selección y pide la key antes de habilitar el motor; cancelar el diálogo revierte el combo a "Tesseract".
-- [ ] La API key ingresada se guarda en el keyring del sistema operativo (servicio `ocr-py`, usuario `anthropic_api_key`), nunca en texto plano ni cifrada dentro de `config.json`.
-- [ ] Una vez guardada, el campo de API key se muestra enmascarado con un botón "Cambiar" para reemplazarla.
-- [ ] Un texto informativo permanente (no modal) junto al combobox de motor OCR indica que Claude Haiku es un servicio pago, con el costo estimado por imagen.
-- [ ] Con el motor en "Tesseract", el flujo de OCR de imágenes (incluyendo tiling, preprocesamiento y recorte de región) funciona exactamente igual que antes de esta spec.
-- [ ] Con el motor en "Claude Haiku", transcribir una imagen (con o sin recorte de región) envía la imagen completa a la API de Anthropic y devuelve el texto reconocido, respetando el idioma seleccionado (Español/Inglés/Ambos) vía instrucción en el prompt.
-- [ ] Con el motor en "Claude Haiku", errores de la API (sin conexión, key inválida, rate limit, cuota agotada) se muestran vía `QMessageBox` con un mensaje específico, sin fallback automático a Tesseract.
-- [ ] `config.json` persiste `engine: "claude"` o `engine: "tesseract"` según la selección, sin perder `tesseract_path`/`theme` existentes.
-- [ ] "OCR en vivo" (specs 08-09, 11) sigue usando Tesseract exclusivamente sin importar el valor de `engine` en Configuración — sin regresión.
-- [ ] `costs/claude-haiku-pricing.md` existe con el pricing estimado, y `costs/` está en `.gitignore` (no se sube a git).
-- [ ] MVC respetado: `model/claude_ocr_model.py` no importa PySide6; `view/settings_view.py` no llama al SDK `anthropic` ni a `keyring` directamente; toda la orquestación vive en los controllers.
-- [ ] Cada paso del plan de implementación deja la app ejecutable con `python main.py` sin romper flujos existentes hasta el paso siguiente.
+- [x] `requirements.txt` incluye `anthropic` y `keyring`; `CLAUDE.md` documenta ambas como dependencias externas aprobadas.
+- [x] El combobox "Motor OCR" en Configuración deja elegir entre "Tesseract" y "Claude Haiku" (ya no está deshabilitado).
+- [x] Al seleccionar "Claude Haiku" sin una API key guardada, la app bloquea la selección y pide la key antes de habilitar el motor; cancelar el diálogo revierte el combo a "Tesseract".
+- [x] La API key ingresada se guarda en el keyring del sistema operativo (servicio `ocr-py`, usuario `anthropic_api_key`), nunca en texto plano ni cifrada dentro de `config.json`.
+- [x] Una vez guardada, el campo de API key se muestra enmascarado con un botón "Cambiar" para reemplazarla.
+- [x] Un texto informativo permanente (no modal) junto al combobox de motor OCR indica que Claude Haiku es un servicio pago, con el costo estimado por imagen.
+- [x] Con el motor en "Tesseract", el flujo de OCR de imágenes (incluyendo tiling, preprocesamiento y recorte de región) funciona exactamente igual que antes de esta spec.
+- [x] Con el motor en "Claude Haiku", transcribir una imagen (con o sin recorte de región) envía la imagen completa a la API de Anthropic y devuelve el texto reconocido, respetando el idioma seleccionado (Español/Inglés/Ambos) vía instrucción en el prompt.
+- [x] Con el motor en "Claude Haiku", errores de la API (sin conexión, key inválida, rate limit, cuota agotada) se muestran vía `QMessageBox` con un mensaje específico, sin fallback automático a Tesseract.
+- [x] `config.json` persiste `engine: "claude"` o `engine: "tesseract"` según la selección, sin perder `tesseract_path`/`theme` existentes.
+- [x] "OCR en vivo" (specs 08-09, 11) sigue usando Tesseract exclusivamente sin importar el valor de `engine` en Configuración — sin regresión.
+- [x] `costs/claude-haiku-pricing.md` existe con el pricing estimado, y `costs/` está en `.gitignore` (no se sube a git).
+- [x] MVC respetado: `model/claude_ocr_model.py` no importa PySide6; `view/settings_view.py` no llama al SDK `anthropic` ni a `keyring` directamente; toda la orquestación vive en los controllers.
+- [x] Cada paso del plan de implementación deja la app ejecutable con `python main.py` sin romper flujos existentes hasta el paso siguiente.
 
 ## Decisions
 
