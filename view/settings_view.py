@@ -19,8 +19,8 @@ TRANSLATION_ENGINE_OPTIONS = ["Argos Translate", "Claude Haiku (próximamente)"]
 
 ENGINE_COST_NOTICE_TEXT = (
     "Claude Haiku es un servicio pago de Anthropic: cada imagen transcripta "
-    "consume tu cuota de la API (estimado ~USD 0.001-0.005 por imagen, según "
-    "tamaño y pricing vigente)."
+    "consume tu cuota de la API (estimado ~USD 0.001-0.02 por imagen, según "
+    "tamaño y cantidad de texto, y sujeto al pricing vigente)."
 )
 
 MASKED_API_KEY_PLACEHOLDER = "••••••••••••"
