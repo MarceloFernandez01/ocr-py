@@ -4,3 +4,5 @@ numpy
 opencv-python
 PySide6
 argostranslate
+anthropic
+keyring

@@ -15,6 +15,9 @@ LANGUAGE_MAP = {
     "Ambos": "spa+eng",
 }
 
+KEYRING_SERVICE = "ocr-py"
+KEYRING_USERNAME = "anthropic_api_key"
+
 
 def prompt_tesseract_path(parent: QWidget) -> str | None:
     """Pide al usuario la ruta del ejecutable de Tesseract y la persiste si es válida."""

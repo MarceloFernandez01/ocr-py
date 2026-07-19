@@ -50,3 +50,15 @@ def save_theme(theme: str) -> None:
     config["theme"] = theme
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
+
+
+def save_engine(engine: str) -> None:
+    """Persiste el motor OCR elegido en config.json, preservando el resto de claves.
+
+    Args:
+        engine: "tesseract" o "claude".
+    """
+    config = load_config()
+    config["engine"] = engine
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)

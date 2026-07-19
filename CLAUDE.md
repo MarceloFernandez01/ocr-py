@@ -8,7 +8,7 @@ MVP de un aplicativo de escritorio en Python para OCR (Optical Character Recogni
 
 Restricciones del proyecto y decisiones técnicas cerradas en `specs/01-mvp-ocr-tesseract-tkinter.md`:
 
-- **Evitar módulos externos salvo que sea estrictamente necesario.** Las dependencias externas aprobadas son `pytesseract` (motor OCR), `Pillow` (decodificación de imágenes en cualquier formato para la vista previa en GUI), `numpy` y `opencv-python` (preprocesamiento de imagen para OCR sobre fondos complejos, ver `specs/03-preprocesamiento-ocr.md`), `PySide6` (toolkit de GUI, ver `specs/04-migracion-pyside6-menu-inicio.md`) y `argostranslate` (traducción offline del texto reconocido en OCR en vivo, ver `specs/11-traduccion-ocr-en-vivo.md`). No agregar otras sin pasar antes por una spec.
+- **Evitar módulos externos salvo que sea estrictamente necesario.** Las dependencias externas aprobadas son `pytesseract` (motor OCR), `Pillow` (decodificación de imágenes en cualquier formato para la vista previa en GUI), `numpy` y `opencv-python` (preprocesamiento de imagen para OCR sobre fondos complejos, ver `specs/03-preprocesamiento-ocr.md`), `PySide6` (toolkit de GUI, ver `specs/04-migracion-pyside6-menu-inicio.md`), `argostranslate` (traducción offline del texto reconocido en OCR en vivo, ver `specs/11-traduccion-ocr-en-vivo.md`), `anthropic` (SDK oficial de Anthropic, motor OCR alternativo vía Claude Haiku 4.5, ver `specs/13-ocr-claude-motor-alternativo.md`) y `keyring` (almacenamiento seguro de la API key de Anthropic en el keyring del SO, ver `specs/13-ocr-claude-motor-alternativo.md`). No agregar otras sin pasar antes por una spec.
 - **Respetar el patrón MVC** (Modelo-Vista-Controlador) en la organización del código: `model/` (lógica de OCR y config, sin importar PySide6), `view/` (ventana y widgets PySide6, sin llamar a `pytesseract` directamente), `controller/` (conecta eventos de la vista con el modelo).
 - **GUI en PySide6 con skin visual estilo Metro** (tipografía Segoe UI, superficies planas, tiles, acento azul), centralizado en `view/metro_style.py` (ver `specs/06-reskin-metro.md`). Soporta tema oscuro y claro con toggle en caliente desde la vista de Configuración (ver `specs/07-menu-configuracion-sidebar.md`); default oscuro, persistido en `config.json`.
 - **Motor OCR: Tesseract vía `pytesseract`.** El usuario debe instalar Tesseract-OCR manualmente en el sistema (no se instala vía pip ni se instala automáticamente desde la app). La app detecta la ruta por PATH; si no la encuentra, pide la ruta manualmente y la persiste en `config.json`.
@@ -27,19 +27,21 @@ El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado
 - `model/image_preprocessing.py` — variantes de preprocesamiento y upscaling con selección por confianza (spec 03).
 - `model/image_diff.py` — compara capturas de pantalla para detectar cambios significativos, usado en el polling de OCR en vivo (spec 08).
 - `model/translation_model.py` — traducción offline del texto reconocido vía `argostranslate`, con descarga on-demand del modelo de idioma (spec 11).
+- `model/claude_ocr_model.py` — OCR alternativo vía Claude Haiku 4.5 (SDK `anthropic`), con import perezoso del SDK; redimensiona la imagen solo si excede los límites de tamaño de la API (spec 13).
 - `view/main_window.py` — `MainWindow`, sidebar + `QStackedWidget` con 3 vistas (`OcrView`, `LiveOcrView`, `SettingsView`), tamaño fijo 1200x900, `apply_theme(theme)` para tema en caliente.
 - `view/sidebar_view.py` — panel lateral persistente ("OCR de imágenes", "OCR en vivo", engranaje Configuración), señales `ocr_selected`/`live_ocr_selected`/`settings_selected`.
-- `view/ocr_view.py` — flujo de OCR sobre imágenes (abrir, idioma, recorte de región opcional vía "Activar recorte"/"Quitar recorte", transcribir, preview, resultado) (spec 10).
+- `view/ocr_view.py` — flujo de OCR sobre imágenes (abrir, idioma, recorte/zoom/paneo sobre la preview, transcribir, resultado), soporta motor Tesseract o Claude según Configuración (specs 10, 12, 13).
 - `view/live_ocr_view.py` — pantalla de OCR en vivo: activa el overlay de captura y controla el inicio/fin de la transcripción por polling (specs 08-09).
 - `view/screen_overlay.py` — overlay flotante para seleccionar el segmento de pantalla a capturar en OCR en vivo.
-- `view/settings_view.py` — vista de Configuración: `ThemeSwitch` (tema claro/oscuro en caliente) y combo deshabilitado de motor OCR.
+- `view/settings_view.py` — vista de Configuración: `ThemeSwitch` (tema claro/oscuro en caliente), combo de motor OCR (Tesseract / Claude Haiku) con campo de API key enmascarado guardado en el keyring del SO, y aviso de costo del motor Claude (spec 13).
 - `view/metro_style.py` — única fuente del QSS estilo Metro (`get_stylesheet(theme)`), sin lógica de negocio.
 - `view/assets/` — íconos de chevron para `QComboBox`, uno por tema.
-- `controller/ocr_controller.py` — conecta `OcrView` con el Model: errores vía `QMessageBox`/`QFileDialog`, threading (`QThreadPool`/`QRunnable`) con contador de segundos, y estado de recorte `_crop_box` (mapea preview→imagen original antes de transcribir).
-- `controller/live_ocr_controller.py` — ciclo de OCR en vivo: captura de pantalla, diff (`image_diff`) para detectar cambios y disparo de transcripción por polling.
-- `controller/settings_controller.py` — conecta el toggle de tema de `SettingsView` con `save_theme()` y `MainWindow.apply_theme()`.
-- `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`, `PySide6`, `argostranslate`.
-- `config.json` — generado en runtime (no versionado, `.gitignore`), incluye `tesseract_path` y `theme`.
+- `controller/common.py` — utilidades compartidas entre `OcrController` y `LiveOcrController`: mapa de idiomas, prompt de ruta de Tesseract, label de progreso y constantes del keyring de la API key de Anthropic.
+- `controller/ocr_controller.py` — conecta `OcrView` con el Model: errores vía `QMessageBox`/`QFileDialog`, threading (`QThreadPool`/`QRunnable`) con contador de segundos, estado de recorte `_crop_box` (mapea preview→imagen original antes de transcribir) y despacho a Tesseract o Claude según el motor configurado.
+- `controller/live_ocr_controller.py` — ciclo de OCR en vivo: captura de pantalla, diff (`image_diff`) para detectar cambios y disparo de transcripción por polling (siempre vía Tesseract).
+- `controller/settings_controller.py` — conecta el toggle de tema y el selector de motor OCR de `SettingsView` con el model (`save_theme()`, `config.json`, keyring) y con `MainWindow.apply_theme()`.
+- `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`, `PySide6`, `argostranslate`, `anthropic`, `keyring`.
+- `config.json` — generado en runtime (no versionado, `.gitignore`), incluye `tesseract_path`, `theme` y `engine` (motor OCR seleccionado). La API key de Anthropic no se guarda acá, se guarda en el keyring del SO.
 
 No hay comandos de build/lint/test configurados en el repo (no hay `pyproject.toml` ni `Makefile`). Para correr la app: `python main.py`. Antes de asumir que existe un comando de test o lint, verificar con `ls`.
 
@@ -71,3 +73,5 @@ Cuando se implemente una feature de este proyecto, sigue este flujo en vez de es
 - `specs/09-live-ocr-boton-iniciar-transcripcion.md` (`Implementado`) — separa activar el overlay de iniciar la transcripción en OCR en vivo, y agrega labels de idioma.
 - `specs/10-recorte-region-ocr-imagenes.md` (`Implementado`) — recorte de región sobre la imagen antes de transcribir en OCR de imágenes ("Activar recorte"/"Quitar recorte").
 - `specs/11-traduccion-ocr-en-vivo.md` (`Aprobado`) — traducción offline (vía `argostranslate`) del texto reconocido en OCR en vivo, con selectores de idioma origen/destino y botón toggle sincronizado con el polling.
+- `specs/12-zoom-paneo-ocr-imagenes.md` (`Implementado`) — zoom con rueda del mouse (centrado en el cursor) y paneo con click derecho en la preview de `OcrView`; simplifica el recorte de spec 10 a selección directa por click izquierdo.
+- `specs/13-ocr-claude-motor-alternativo.md` (`Aprobado`) — motor OCR alternativo vía Claude Haiku 4.5 (SDK `anthropic`), seleccionable desde Configuración, con la API key guardada en el keyring del SO; OCR en vivo sigue usando Tesseract exclusivamente.
