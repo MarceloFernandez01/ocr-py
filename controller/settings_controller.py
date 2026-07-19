@@ -65,7 +65,7 @@ class SettingsController:
             key, ok = QInputDialog.getText(
                 self.settings_view,
                 "API key de Anthropic",
-                "Ingresá tu API key de Anthropic para usar Claude Haiku como motor OCR:",
+                "Ingrese su API key de Anthropic para usar Claude Haiku como motor OCR:",
                 echo=QLineEdit.Password,
             )
             if not ok or not key:
