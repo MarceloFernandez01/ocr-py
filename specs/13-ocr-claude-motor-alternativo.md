@@ -1,6 +1,6 @@
 # Spec 13: OCR con Claude — motor OCR alternativo vía API de Anthropic
 
-**Estado:** Aprobado
+**Estado:** Implementado
 **Dependencias:** `specs/01-mvp-ocr-tesseract-tkinter.md`, `specs/07-menu-configuracion-sidebar.md`, `specs/08-ocr-en-vivo.md` (gancho existente: clave única `engine` en `config.json`, compartida hoy con OCR en vivo, y combobox deshabilitado en `SettingsView`)
 **Fecha:** 2026-07-18
 
