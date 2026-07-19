@@ -7,14 +7,12 @@ from typing import TYPE_CHECKING
 import keyring
 from PySide6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
 
+from controller.common import KEYRING_SERVICE, KEYRING_USERNAME
 from model.config_model import load_config, save_engine, save_theme
 from view.settings_view import SettingsView
 
 if TYPE_CHECKING:
     from view.main_window import MainWindow
-
-KEYRING_SERVICE = "ocr-py"
-KEYRING_USERNAME = "anthropic_api_key"
 
 
 class SettingsController:

@@ -2,13 +2,23 @@
 
 import time
 
+import keyring
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from PySide6.QtCore import Qt, QEvent, QObject, QPointF, QRect, QRectF, QRunnable, QThreadPool, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
-from controller.common import COUNTER_INTERVAL_MS, LANGUAGE_MAP, processing_label, prompt_tesseract_path
+from controller.common import (
+    COUNTER_INTERVAL_MS,
+    KEYRING_SERVICE,
+    KEYRING_USERNAME,
+    LANGUAGE_MAP,
+    processing_label,
+    prompt_tesseract_path,
+)
+from model.claude_ocr_model import transcribe_image_claude
+from model.config_model import load_config
 from model.ocr_model import transcribe_cropped_image, transcribe_large_image
 from model.tesseract_locator import resolve_tesseract_path
 from view.ocr_view import OcrView
@@ -47,28 +57,38 @@ class TranscriptionRunnable(QRunnable):
 
     def __init__(
         self,
-        image_path: str,
+        engine: str,
         language_code: str,
-        tesseract_path: str | None,
         signals: TranscriptionSignals,
+        image_path: str | None = None,
+        tesseract_path: str | None = None,
         cropped_image: Image.Image | None = None,
+        claude_image: Image.Image | None = None,
+        api_key: str | None = None,
     ) -> None:
         """Guarda los parámetros de la transcripción a ejecutar en `run()`.
 
-        Si `cropped_image` no es None, `run()` transcribe esa región recortada
-        en vez de la imagen completa en `image_path`.
+        Si `engine` es `"claude"`, transcribe `claude_image` (imagen completa
+        o ya recortada) vía Claude Haiku con `api_key`. Si es `"tesseract"`
+        (default), transcribe `cropped_image` si no es None, o la imagen
+        completa en `image_path` (con tiling) en caso contrario.
         """
         super().__init__()
+        self.engine = engine
         self.image_path = image_path
         self.language_code = language_code
         self.tesseract_path = tesseract_path
         self.cropped_image = cropped_image
+        self.claude_image = claude_image
+        self.api_key = api_key
         self.signals = signals
 
     def run(self) -> None:
         """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado."""
         try:
-            if self.cropped_image is not None:
+            if self.engine == "claude":
+                result = transcribe_image_claude(self.claude_image, self.language_code, self.api_key)
+            elif self.cropped_image is not None:
                 result = transcribe_cropped_image(self.cropped_image, self.language_code, self.tesseract_path)
             else:
                 result = transcribe_large_image(self.image_path, self.language_code, self.tesseract_path)
@@ -379,22 +399,41 @@ class OcrController(QObject):
         self.view.update_crop_button(has_crop=True)
 
     def on_transcribe(self) -> None:
-        """Transcribe la imagen cargada usando el idioma seleccionado en la vista."""
+        """Transcribe la imagen cargada usando el idioma y el motor seleccionados."""
         if self.state.transcription_in_progress:
             return
 
         self.state.selected_language = self.view.get_selected_language()
         language_code = LANGUAGE_MAP[self.state.selected_language]
-        tesseract_path = resolve_tesseract_path()
+        engine = load_config().get("engine", "tesseract")
 
+        if engine == "claude":
+            api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
+            if not api_key:
+                QMessageBox.critical(
+                    self.view,
+                    "Falta la API key",
+                    "No hay una API key de Anthropic guardada. Configurala desde Configuración.",
+                )
+                return
+            self._start_transcription(language_code, engine="claude", api_key=api_key)
+            return
+
+        tesseract_path = resolve_tesseract_path()
         if tesseract_path is None:
             tesseract_path = prompt_tesseract_path(self.view)
             if tesseract_path is None:
                 return
 
-        self._start_transcription(language_code, tesseract_path)
+        self._start_transcription(language_code, engine="tesseract", tesseract_path=tesseract_path)
 
-    def _start_transcription(self, language_code: str, tesseract_path: str | None) -> None:
+    def _start_transcription(
+        self,
+        language_code: str,
+        engine: str,
+        tesseract_path: str | None = None,
+        api_key: str | None = None,
+    ) -> None:
         """Lanza la transcripción en el `QThreadPool` global y arranca el contador de segundos en vivo."""
         self.state.transcription_in_progress = True
         self.view.disable_transcribe_button()
@@ -404,9 +443,24 @@ class OcrController(QObject):
         if self._crop_box is not None and self._preview_source is not None:
             cropped_image = self._preview_source.crop(self._crop_box)
 
-        runnable = TranscriptionRunnable(
-            self.state.image_path, language_code, tesseract_path, self._worker_signals, cropped_image=cropped_image
-        )
+        if engine == "claude":
+            claude_image = cropped_image if cropped_image is not None else self._preview_source
+            runnable = TranscriptionRunnable(
+                engine="claude",
+                language_code=language_code,
+                signals=self._worker_signals,
+                claude_image=claude_image,
+                api_key=api_key,
+            )
+        else:
+            runnable = TranscriptionRunnable(
+                engine="tesseract",
+                language_code=language_code,
+                signals=self._worker_signals,
+                image_path=self.state.image_path,
+                tesseract_path=tesseract_path,
+                cropped_image=cropped_image,
+            )
         QThreadPool.globalInstance().start(runnable)
 
         self._counter_timer = QTimer(self)
