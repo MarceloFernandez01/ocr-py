@@ -45,6 +45,28 @@ def _fit_within_box(source_size: tuple[int, int], box_size: tuple[int, int]) -> 
     return max(1, round(source_width / source_height * box_height)), box_height
 
 
+def _format_claude_error(error: Exception) -> str:
+    """Traduce una excepción del SDK `anthropic` a un mensaje legible en español.
+
+    Import perezoso de `anthropic` (mismo patrón que `claude_ocr_model.py`):
+    esta función solo se llama tras una transcripción fallida con el motor Claude.
+    """
+    import anthropic
+
+    if isinstance(error, anthropic.AuthenticationError):
+        return "La API key de Anthropic no es válida. Podés cambiarla desde Configuración."
+    if isinstance(error, anthropic.APIConnectionError):
+        return "No se pudo conectar con la API de Anthropic. Revisá tu conexión a internet."
+    if isinstance(error, anthropic.RateLimitError):
+        return "Se alcanzó el límite de uso (rate limit) de la API de Anthropic. Esperá unos minutos y volvé a intentar."
+    if isinstance(error, anthropic.APIStatusError):
+        detail = error.message
+        if isinstance(error.body, dict):
+            detail = error.body.get("error", {}).get("message", detail)
+        return f"La API de Anthropic devolvió un error ({error.status_code}): {detail}"
+    return str(error)
+
+
 class TranscriptionSignals(QObject):
     """Señales emitidas por `TranscriptionRunnable` al terminar (los `QRunnable` no tienen señales propias)."""
 
@@ -93,7 +115,8 @@ class TranscriptionRunnable(QRunnable):
             else:
                 result = transcribe_large_image(self.image_path, self.language_code, self.tesseract_path)
         except Exception as error:
-            self.signals.failed.emit(str(error))
+            message = _format_claude_error(error) if self.engine == "claude" else str(error)
+            self.signals.failed.emit(message)
         else:
             self.signals.succeeded.emit(result)
 
