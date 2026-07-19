@@ -81,7 +81,7 @@ def transcribe_image_claude(image: Image.Image, language_code: str, api_key: str
         "Transcribe todo el texto visible en esta imagen exactamente como aparece, "
         "preservando saltos de línea y el orden de lectura natural. "
         f"{LANGUAGE_INSTRUCTIONS[language_code]} "
-        "Devolvé únicamente el texto transcripto, sin comentarios ni explicaciones adicionales."
+        "Devuelve únicamente el texto transcripto, sin comentarios ni explicaciones adicionales."
     )
 
     client = anthropic.Anthropic(api_key=api_key)
