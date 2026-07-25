@@ -69,12 +69,15 @@ def transcribe_image_variants(image: Image.Image, language_code: str, tesseract_
     if tesseract_path is not None:
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
+    tesseract_config = "-c tessedit_char_blacklist=|"
     variants = generate_variants(image)
     best_variant = variants[0][1]  # original, por si todas las variantes empatan o quedan vacías
     best_confidence = -1.0
 
     for _, variant in variants:
-        data = pytesseract.image_to_data(variant, lang=language_code, output_type=Output.DICT)
+        data = pytesseract.image_to_data(
+            variant, lang=language_code, output_type=Output.DICT, config=tesseract_config
+        )
         confidences = [
             float(conf)
             for conf, text in zip(data["conf"], data["text"])
@@ -88,4 +91,4 @@ def transcribe_image_variants(image: Image.Image, language_code: str, tesseract_
             best_confidence = confidence
             best_variant = variant
 
-    return pytesseract.image_to_string(best_variant, lang=language_code)
+    return pytesseract.image_to_string(best_variant, lang=language_code, config=tesseract_config)

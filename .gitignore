@@ -6,6 +6,7 @@ config.json
 build/
 dist/
 *.spec
+!OCR-Py.spec
 claude-ocr-idea.txt
 canvas.png
 futuras specs.txt
