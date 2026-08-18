@@ -158,7 +158,7 @@ class SettingsView(QWidget):
         self.api_key_container.setVisible(False)
 
         min_word_confidence_label = QLabel("Filtrar ruido (confianza mínima)")
-        initial_min_word_confidence = load_config().get("min_word_confidence", 30)
+        initial_min_word_confidence = load_config().get("min_word_confidence", 95)
         self.min_word_confidence_slider = QSlider(Qt.Horizontal)
         self.min_word_confidence_slider.setRange(0, 100)
         self.min_word_confidence_slider.setValue(initial_min_word_confidence)

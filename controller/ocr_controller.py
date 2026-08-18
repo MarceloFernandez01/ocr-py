@@ -455,7 +455,7 @@ class OcrController(QObject):
             if tesseract_path is None:
                 return
 
-        min_word_confidence = load_config().get("min_word_confidence", 30)
+        min_word_confidence = load_config().get("min_word_confidence", 95)
         self._start_transcription(
             language_code, engine="tesseract", tesseract_path=tesseract_path, min_word_confidence=min_word_confidence
         )

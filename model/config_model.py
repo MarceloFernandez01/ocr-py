@@ -16,7 +16,7 @@ def load_config() -> dict:
     """Carga la configuración desde config.json.
 
     Devuelve un diccionario con los valores default (`theme` en `"dark"`,
-    `engine` en `"tesseract"`, `min_word_confidence` en `30`) si el archivo no
+    `engine` en `"tesseract"`, `min_word_confidence` en `95`) si el archivo no
     existe o no incluye alguna clave.
     """
     if not os.path.exists(CONFIG_PATH):
@@ -26,7 +26,7 @@ def load_config() -> dict:
             config = json.load(f)
     config.setdefault("theme", "dark")
     config.setdefault("engine", "tesseract")
-    config.setdefault("min_word_confidence", 30)
+    config.setdefault("min_word_confidence", 95)
     return config
 
 

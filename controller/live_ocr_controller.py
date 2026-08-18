@@ -172,7 +172,7 @@ class LiveOcrController(QObject):
                     return
 
             self._tesseract_path = tesseract_path
-            self._min_word_confidence = load_config().get("min_word_confidence", 30)
+            self._min_word_confidence = load_config().get("min_word_confidence", 95)
 
             self._timer = QTimer(self)
             self._timer.timeout.connect(self._poll)

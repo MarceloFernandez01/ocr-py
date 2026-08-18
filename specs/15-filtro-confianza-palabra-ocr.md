@@ -32,11 +32,11 @@
   "tesseract_path": "...",
   "theme": "dark",
   "engine": "tesseract",
-  "min_word_confidence": 30
+  "min_word_confidence": 95
 }
 ```
 
-- `min_word_confidence`: entero 0-100 (default `30`). Palabras que `pytesseract.image_to_data` reconoce con `conf < min_word_confidence` se descartan del texto final. `0` desactiva el filtro por completo (comportamiento idéntico al actual, sin regresión para quien lo baje a `0`).
+- `min_word_confidence`: entero 0-100 (default `95`). Palabras que `pytesseract.image_to_data` reconoce con `conf < min_word_confidence` se descartan del texto final. `0` desactiva el filtro por completo (comportamiento idéntico al actual, sin regresión para quien lo baje a `0`).
 
 **`model/ocr_model.py`** — cambios sobre lo existente:
 
@@ -56,26 +56,26 @@
 1. **`model/ocr_model.py`: filtrado por confianza en `transcribe_image_variants`.** Agregar el parámetro `min_word_confidence: int = 0` a las tres funciones públicas y reemplazar la línea final `pytesseract.image_to_string(best_variant, ...)` por una reconstrucción del texto desde `pytesseract.image_to_data(best_variant, ...)`, descartando palabras con `conf < min_word_confidence` y preservando el agrupamiento por línea. El default `0` significa que, sin nadie pasando el parámetro todavía, el comportamiento es idéntico al actual.
    Prueba manual: correr `python main.py`, transcribir en OCR de imágenes y en OCR en vivo con casos ya probados antes; confirmar que el resultado es exactamente igual que hoy (nadie pasa `min_word_confidence` todavía, default `0`).
 
-2. **`model/config_model.py`: persistencia de `min_word_confidence`.** Agregar la clave a la carga/guardado de `config.json` con default `30`, y `save_min_word_confidence(value: int)`.
-   Prueba manual: borrar `config.json`, correr la app, confirmar que se regenera con `"min_word_confidence": 30`. Editar el valor a mano en el archivo, reiniciar la app, confirmar que se lee correctamente (sin UI todavía, solo el modelo).
+2. **`model/config_model.py`: persistencia de `min_word_confidence`.** Agregar la clave a la carga/guardado de `config.json` con default `95`, y `save_min_word_confidence(value: int)`.
+   Prueba manual: borrar `config.json`, correr la app, confirmar que se regenera con `"min_word_confidence": 95`. Editar el valor a mano en el archivo, reiniciar la app, confirmar que se lee correctamente (sin UI todavía, solo el modelo).
 
 3. **`view/settings_view.py`: control de UI (sin conectar lógica todavía).** Agregar `QSlider` horizontal (0-100) con label "Filtrar ruido (confianza mínima)" y una etiqueta con el valor numérico actual, valor inicial leído de `config.json`, y la señal `min_word_confidence_changed(int)` — se emite pero nada la escucha aún.
-   Prueba manual: ir a Configuración, confirmar que el nuevo campo aparece con el valor `30` cargado, y que cambiarlo no tiene efecto real todavía (no conectado). Confirmar que el resto de Configuración sigue funcionando igual.
+   Prueba manual: ir a Configuración, confirmar que el nuevo campo aparece con el valor `95` cargado, y que cambiarlo no tiene efecto real todavía (no conectado). Confirmar que el resto de Configuración sigue funcionando igual.
 
 4. **`controller/settings_controller.py`: conectar el control.** Conectar `min_word_confidence_changed` a `save_min_word_confidence()`.
    Prueba manual: cambiar el valor en Configuración, cerrar y reabrir la app, confirmar que el campo mantiene el nuevo valor (persistencia en `config.json`).
 
 5. **`controller/ocr_controller.py` y `controller/live_ocr_controller.py`: usar el umbral al transcribir con Tesseract.** Leer `min_word_confidence` de `config.json` y pasarlo en cada llamada a `transcribe_large_image`/`transcribe_cropped_image`/`transcribe_image_variants`.
-   Prueba manual: con el umbral en `30` (default), reproducir el caso reportado (botón "Change Outfit" en OCR en vivo) y confirmar que el resultado ya no incluye `= =` ni `o` sueltos, solo "Change Outfit". Repetir en OCR de imágenes estático con la misma imagen guardada como archivo. Transcribir además una imagen de texto normal ya reconocida bien antes de este cambio y confirmar que no hay regresión. Bajar el umbral a `0` desde Configuración y confirmar que vuelve el comportamiento original (validación del mecanismo de desactivación).
+   Prueba manual: con el umbral en `95` (default), reproducir el caso reportado (botón "Change Outfit" en OCR en vivo) y confirmar que el resultado ya no incluye `= =` ni `o` sueltos, solo "Change Outfit". Repetir en OCR de imágenes estático con la misma imagen guardada como archivo. Transcribir además una imagen de texto normal ya reconocida bien antes de este cambio y confirmar que no hay regresión. Bajar el umbral a `0` desde Configuración y confirmar que vuelve el comportamiento original (validación del mecanismo de desactivación).
 
 ## Criterios de aceptación
 
-- [x] `config.json` incluye la clave `min_word_confidence` (entero 0-100, default `30`); un `config.json` sin esa clave se migra al abrir la app sin romper `tesseract_path`/`theme`/`engine` existentes.
+- [x] `config.json` incluye la clave `min_word_confidence` (entero 0-100, default `95`); un `config.json` sin esa clave se migra al abrir la app sin romper `tesseract_path`/`theme`/`engine` existentes.
 - [x] `transcribe_image_variants`, `transcribe_large_image` y `transcribe_cropped_image` en `model/ocr_model.py` aceptan `min_word_confidence` y descartan del texto final las palabras con `conf` por debajo del umbral.
 - [x] Con `min_word_confidence` en `0`, el resultado de cualquier transcripción es idéntico al comportamiento previo a esta spec (sin regresión, filtro desactivado).
-- [ ] Con el umbral en `30` (default), transcribir el botón "Change Outfit" reportado en el bug (desde OCR en vivo) ya no muestra `= =` ni `o` sueltos; el resultado es únicamente "Change Outfit (descartado, eso solo sucede si el umbral está en 95)".
+- [x] Con el umbral en `95` (default), transcribir el botón "Change Outfit" reportado en el bug (desde OCR en vivo) ya no muestra `= =` ni `o` sueltos; el resultado es únicamente "Change Outfit".
 - [x] El mismo resultado correcto se obtiene al transcribir la misma imagen (como archivo) desde OCR de imágenes estático, con y sin recorte de región.
-- [x] Una imagen con texto normal ya transcripta correctamente antes de este fix sigue transcribiéndose igual con el umbral default (`30`).
+- [x] Una imagen con texto normal ya transcripta correctamente antes de este fix sigue transcribiéndose igual con el umbral default (`95`).
 - [x] La vista de Configuración muestra un control para ajustar `min_word_confidence` (0-100), con el valor persistido en `config.json` tras cerrar y reabrir la app.
 - [x] El motor Claude Haiku (spec 13) no se ve afectado por este cambio; sigue sin usar `image_preprocessing.py` ni `ocr_model.py`.
 - [x] No se modifican otros archivos fuera de `model/ocr_model.py`, `model/config_model.py`, `view/settings_view.py`, `controller/settings_controller.py`, `controller/ocr_controller.py` y `controller/live_ocr_controller.py`.
@@ -84,7 +84,7 @@
 
 - **Sí:** umbral de confianza genérico por palabra, en vez de una detección específica de patrones de ruido (tokens cortos no alfabéticos como "=", "o"). Es más simple de implementar y cubre este caso y otros análogos (ruido de fondo, artefactos de compresión, otros íconos), según lo decidido en la conversación.
 - **Sí:** el umbral queda configurable desde Configuración, a diferencia del blacklist fijo de la spec 14. Es la forma de mitigar el trade-off del filtrado genérico: si el usuario nota pérdida de texto real de baja confianza (fuentes decorativas, texto pequeño), puede bajar el umbral o desactivarlo (`0`) sin esperar un cambio de código.
-- **Sí:** valor por defecto `30` (no `0`). Un default de `0` no resolvería el bug reportado sin que el usuario descubra y ajuste el control manualmente; `30` es lo bastante bajo para no filtrar texto legítimo de confianza media, y lo bastante alto para descartar el ruido gráfico observado en el caso reportado.
+- **Sí:** valor por defecto `95` (no `0`). Un default de `0` no resolvería el bug reportado sin que el usuario descubra y ajuste el control manualmente. Se probó primero con `30` según la estimación inicial, pero la verificación manual con la imagen del bug reportado (botón "Change Outfit") mostró que Tesseract reconoce el ruido gráfico (`= =`, `o` sueltos) con una confianza más alta de lo esperado: con `30` el ruido seguía sin filtrarse, y recién se descarta con el umbral en `95`.
 - **Sí:** reconstruir el texto final desde `pytesseract.image_to_data` (que ya calcula `conf` por palabra) en vez de post-procesar el string final de `image_to_string` con heurísticas de texto. Reutiliza información que Tesseract ya provee, sin adivinar qué es ruido a partir del texto ya ensamblado.
 - **Sí:** aplicar el cambio en `transcribe_image_variants`, punto único ya usado por OCR en vivo y OCR de imágenes estático (con tiling y con recorte), igual que la spec 14. Evita duplicar lógica.
 - **No:** detección específica de patrones de ruido (tokens cortos, símbolos sueltos). Descartada a favor del umbral genérico por decisión explícita en la conversación.
@@ -94,6 +94,6 @@
 
 | Riesgo | Mitigación |
 |---|---|
-| El umbral default (`30`) podría filtrar texto real de confianza media-baja (fuentes decorativas, contornos gruesos, texto pequeño), degradando casos que hoy funcionan bien. | Trade-off aceptado explícitamente y mitigado con el control configurable en Configuración: si el usuario detecta pérdida de texto real, puede bajar el umbral o desactivarlo (`0`) sin necesidad de un nuevo fix de código. |
-| El umbral default (`30`) podría no ser suficiente para descartar ruido gráfico más "confiado" que el caso reportado (íconos que Tesseract reconoce con confianza media-alta como texto). | El criterio de aceptación exige verificación manual con la imagen del bug reportado; si persistiera ruido residual con casos análogos, se evaluaría un ajuste de default o una spec de seguimiento. |
+| El umbral default (`95`) podría filtrar texto real de confianza alta pero no perfecta (fuentes decorativas, contornos gruesos, texto pequeño), degradando casos que hoy funcionan bien. | Trade-off aceptado explícitamente y mitigado con el control configurable en Configuración: si el usuario detecta pérdida de texto real, puede bajar el umbral o desactivarlo (`0`) sin necesidad de un nuevo fix de código. |
+| El umbral default (`30`) estimado inicialmente resultó insuficiente para descartar el ruido gráfico del caso reportado (íconos que Tesseract reconoce con confianza más alta de lo esperado). | Confirmado por verificación manual: se subió el default a `95`, valor con el que la imagen del bug reportado (botón "Change Outfit") deja de mostrar `= =` y `o` sueltos. |
 | Reconstruir el texto desde `image_to_data` en vez de `image_to_string` podría alterar sutilmente el espaciado o los saltos de línea del resultado, incluso con el umbral en `0`. | El criterio de no regresión exige que, con umbral `0`, el resultado sea idéntico al actual; si la reconstrucción manual de líneas no reproduce el comportamiento exacto de `image_to_string`, se ajusta la agrupación por `line_num`/`block_num` hasta lograrlo antes de dar el paso 1 por cerrado. |
