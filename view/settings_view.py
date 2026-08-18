@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QSpinBox,
+    QSlider,
     QVBoxLayout,
     QWidget,
 )
@@ -158,9 +158,15 @@ class SettingsView(QWidget):
         self.api_key_container.setVisible(False)
 
         min_word_confidence_label = QLabel("Filtrar ruido (confianza mínima)")
-        self.min_word_confidence_spinbox = QSpinBox()
-        self.min_word_confidence_spinbox.setRange(0, 100)
-        self.min_word_confidence_spinbox.setValue(load_config().get("min_word_confidence", 30))
+        initial_min_word_confidence = load_config().get("min_word_confidence", 30)
+        self.min_word_confidence_slider = QSlider(Qt.Horizontal)
+        self.min_word_confidence_slider.setRange(0, 100)
+        self.min_word_confidence_slider.setValue(initial_min_word_confidence)
+        self.min_word_confidence_value_label = QLabel(str(initial_min_word_confidence))
+
+        min_word_confidence_row = QHBoxLayout()
+        min_word_confidence_row.addWidget(self.min_word_confidence_slider)
+        min_word_confidence_row.addWidget(self.min_word_confidence_value_label)
 
         translation_engine_label = QLabel("Motor de traducción")
         self.translation_engine_combobox = QComboBox()
@@ -176,7 +182,7 @@ class SettingsView(QWidget):
         layout.addWidget(self.engine_cost_notice)
         layout.addWidget(self.api_key_container)
         layout.addWidget(min_word_confidence_label)
-        layout.addWidget(self.min_word_confidence_spinbox)
+        layout.addLayout(min_word_confidence_row)
         layout.addWidget(translation_engine_label)
         layout.addWidget(self.translation_engine_combobox)
         layout.addStretch()
@@ -184,7 +190,12 @@ class SettingsView(QWidget):
         self.theme_switch.clicked.connect(self._on_theme_switch_clicked)
         self.engine_combobox.currentIndexChanged.connect(self._on_engine_combobox_changed)
         self.api_key_button.clicked.connect(self._on_api_key_button_clicked)
-        self.min_word_confidence_spinbox.valueChanged.connect(self.min_word_confidence_changed.emit)
+        self.min_word_confidence_slider.valueChanged.connect(self._on_min_word_confidence_changed)
+
+    def _on_min_word_confidence_changed(self, value: int) -> None:
+        """Actualiza la etiqueta con el valor numérico y emite `min_word_confidence_changed`."""
+        self.min_word_confidence_value_label.setText(str(value))
+        self.min_word_confidence_changed.emit(value)
 
     def _on_theme_switch_clicked(self) -> None:
         """Actualiza el texto del switch y emite `theme_toggled` con el nuevo tema."""

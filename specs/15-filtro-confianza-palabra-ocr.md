@@ -45,7 +45,7 @@
 
 **`model/config_model.py`** — nueva función `save_min_word_confidence(value: int)`, análoga a `save_theme()`/`save_engine()`.
 
-**`view/settings_view.py`** — nuevo `QSpinBox` (rango 0-100) con label "Filtrar ruido (confianza mínima)", valor inicial desde `config.json`. Nueva señal `min_word_confidence_changed(int)`.
+**`view/settings_view.py`** — nuevo `QSlider` horizontal (rango 0-100) con label "Filtrar ruido (confianza mínima)" y una etiqueta que muestra el valor numérico actual junto al deslizador, valor inicial desde `config.json`. Nueva señal `min_word_confidence_changed(int)`.
 
 **`controller/settings_controller.py`** — conecta la nueva señal, persiste el valor vía `save_min_word_confidence()`.
 
@@ -59,7 +59,7 @@
 2. **`model/config_model.py`: persistencia de `min_word_confidence`.** Agregar la clave a la carga/guardado de `config.json` con default `30`, y `save_min_word_confidence(value: int)`.
    Prueba manual: borrar `config.json`, correr la app, confirmar que se regenera con `"min_word_confidence": 30`. Editar el valor a mano en el archivo, reiniciar la app, confirmar que se lee correctamente (sin UI todavía, solo el modelo).
 
-3. **`view/settings_view.py`: control de UI (sin conectar lógica todavía).** Agregar `QSpinBox` (0-100) con label "Filtrar ruido (confianza mínima)", valor inicial leído de `config.json`, y la señal `min_word_confidence_changed(int)` — se emite pero nada la escucha aún.
+3. **`view/settings_view.py`: control de UI (sin conectar lógica todavía).** Agregar `QSlider` horizontal (0-100) con label "Filtrar ruido (confianza mínima)" y una etiqueta con el valor numérico actual, valor inicial leído de `config.json`, y la señal `min_word_confidence_changed(int)` — se emite pero nada la escucha aún.
    Prueba manual: ir a Configuración, confirmar que el nuevo campo aparece con el valor `30` cargado, y que cambiarlo no tiene efecto real todavía (no conectado). Confirmar que el resto de Configuración sigue funcionando igual.
 
 4. **`controller/settings_controller.py`: conectar el control.** Conectar `min_word_confidence_changed` a `save_min_word_confidence()`.
@@ -70,15 +70,15 @@
 
 ## Criterios de aceptación
 
-- [ ] `config.json` incluye la clave `min_word_confidence` (entero 0-100, default `30`); un `config.json` sin esa clave se migra al abrir la app sin romper `tesseract_path`/`theme`/`engine` existentes.
-- [ ] `transcribe_image_variants`, `transcribe_large_image` y `transcribe_cropped_image` en `model/ocr_model.py` aceptan `min_word_confidence` y descartan del texto final las palabras con `conf` por debajo del umbral.
-- [ ] Con `min_word_confidence` en `0`, el resultado de cualquier transcripción es idéntico al comportamiento previo a esta spec (sin regresión, filtro desactivado).
-- [ ] Con el umbral en `30` (default), transcribir el botón "Change Outfit" reportado en el bug (desde OCR en vivo) ya no muestra `= =` ni `o` sueltos; el resultado es únicamente "Change Outfit".
-- [ ] El mismo resultado correcto se obtiene al transcribir la misma imagen (como archivo) desde OCR de imágenes estático, con y sin recorte de región.
-- [ ] Una imagen con texto normal ya transcripta correctamente antes de este fix sigue transcribiéndose igual con el umbral default (`30`).
-- [ ] La vista de Configuración muestra un control para ajustar `min_word_confidence` (0-100), con el valor persistido en `config.json` tras cerrar y reabrir la app.
-- [ ] El motor Claude Haiku (spec 13) no se ve afectado por este cambio; sigue sin usar `image_preprocessing.py` ni `ocr_model.py`.
-- [ ] No se modifican otros archivos fuera de `model/ocr_model.py`, `model/config_model.py`, `view/settings_view.py`, `controller/settings_controller.py`, `controller/ocr_controller.py` y `controller/live_ocr_controller.py`.
+- [x] `config.json` incluye la clave `min_word_confidence` (entero 0-100, default `30`); un `config.json` sin esa clave se migra al abrir la app sin romper `tesseract_path`/`theme`/`engine` existentes.
+- [x] `transcribe_image_variants`, `transcribe_large_image` y `transcribe_cropped_image` en `model/ocr_model.py` aceptan `min_word_confidence` y descartan del texto final las palabras con `conf` por debajo del umbral.
+- [x] Con `min_word_confidence` en `0`, el resultado de cualquier transcripción es idéntico al comportamiento previo a esta spec (sin regresión, filtro desactivado).
+- [ ] Con el umbral en `30` (default), transcribir el botón "Change Outfit" reportado en el bug (desde OCR en vivo) ya no muestra `= =` ni `o` sueltos; el resultado es únicamente "Change Outfit (descartado, eso solo sucede si el umbral está en 95)".
+- [x] El mismo resultado correcto se obtiene al transcribir la misma imagen (como archivo) desde OCR de imágenes estático, con y sin recorte de región.
+- [x] Una imagen con texto normal ya transcripta correctamente antes de este fix sigue transcribiéndose igual con el umbral default (`30`).
+- [x] La vista de Configuración muestra un control para ajustar `min_word_confidence` (0-100), con el valor persistido en `config.json` tras cerrar y reabrir la app.
+- [x] El motor Claude Haiku (spec 13) no se ve afectado por este cambio; sigue sin usar `image_preprocessing.py` ni `ocr_model.py`.
+- [x] No se modifican otros archivos fuera de `model/ocr_model.py`, `model/config_model.py`, `view/settings_view.py`, `controller/settings_controller.py`, `controller/ocr_controller.py` y `controller/live_ocr_controller.py`.
 
 ## Decisions
 
