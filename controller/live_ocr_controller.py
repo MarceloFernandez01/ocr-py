@@ -9,6 +9,7 @@ from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QMessageBox
 
 from controller.common import COUNTER_INTERVAL_MS, LANGUAGE_MAP, processing_label, prompt_tesseract_path
+from model.config_model import load_config
 from model.image_diff import has_changed
 from model.ocr_model import transcribe_image_variants
 from model.tesseract_locator import resolve_tesseract_path
@@ -29,18 +30,28 @@ class LiveTranscriptionSignals(QObject):
 class LiveTranscriptionRunnable(QRunnable):
     """Corre `transcribe_image_variants` en un hilo del `QThreadPool` y emite el resultado por `LiveTranscriptionSignals`."""
 
-    def __init__(self, image: Image.Image, language_code: str, tesseract_path: str | None, signals: LiveTranscriptionSignals) -> None:
+    def __init__(
+        self,
+        image: Image.Image,
+        language_code: str,
+        tesseract_path: str | None,
+        signals: LiveTranscriptionSignals,
+        min_word_confidence: int = 0,
+    ) -> None:
         """Guarda los parámetros de la transcripción a ejecutar en `run()`."""
         super().__init__()
         self.image = image
         self.language_code = language_code
         self.tesseract_path = tesseract_path
+        self.min_word_confidence = min_word_confidence
         self.signals = signals
 
     def run(self) -> None:
         """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado."""
         try:
-            result = transcribe_image_variants(self.image, self.language_code, self.tesseract_path)
+            result = transcribe_image_variants(
+                self.image, self.language_code, self.tesseract_path, self.min_word_confidence
+            )
         except Exception as error:
             self.signals.failed.emit(str(error))
         else:
@@ -104,6 +115,7 @@ class LiveOcrController(QObject):
         self._previous_capture: Image.Image | None = None
         self._worker: LiveTranscriptionSignals | None = None
         self._tesseract_path: str | None = None
+        self._min_word_confidence: int = 0
         self._transcription_start: float = 0.0
         self._translation_active: bool = False
         self._translation_worker: TranslationSignals | None = None
@@ -160,6 +172,7 @@ class LiveOcrController(QObject):
                     return
 
             self._tesseract_path = tesseract_path
+            self._min_word_confidence = load_config().get("min_word_confidence", 95)
 
             self._timer = QTimer(self)
             self._timer.timeout.connect(self._poll)
@@ -270,7 +283,9 @@ class LiveOcrController(QObject):
         signals.succeeded.connect(self._on_transcription_succeeded)
         signals.failed.connect(self._on_transcription_failed)
         self._worker = signals
-        runnable = LiveTranscriptionRunnable(image, language_code, self._tesseract_path, signals)
+        runnable = LiveTranscriptionRunnable(
+            image, language_code, self._tesseract_path, signals, self._min_word_confidence
+        )
         QThreadPool.globalInstance().start(runnable)
         self._counter_timer.start(COUNTER_INTERVAL_MS)
 

@@ -16,7 +16,8 @@ def load_config() -> dict:
     """Carga la configuración desde config.json.
 
     Devuelve un diccionario con los valores default (`theme` en `"dark"`,
-    `engine` en `"tesseract"`) si el archivo no existe o no incluye alguna clave.
+    `engine` en `"tesseract"`, `min_word_confidence` en `95`) si el archivo no
+    existe o no incluye alguna clave.
     """
     if not os.path.exists(CONFIG_PATH):
         config = {}
@@ -25,6 +26,7 @@ def load_config() -> dict:
             config = json.load(f)
     config.setdefault("theme", "dark")
     config.setdefault("engine", "tesseract")
+    config.setdefault("min_word_confidence", 95)
     return config
 
 
@@ -60,5 +62,18 @@ def save_engine(engine: str) -> None:
     """
     config = load_config()
     config["engine"] = engine
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_min_word_confidence(value: int) -> None:
+    """Persiste el umbral de confianza mínima por palabra en config.json.
+
+    Args:
+        value: entero 0-100. Palabras con confianza por debajo de este valor
+            se descartan del texto final de Tesseract; `0` desactiva el filtro.
+    """
+    config = load_config()
+    config["min_word_confidence"] = value
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)

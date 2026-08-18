@@ -42,6 +42,7 @@ El MVP descrito en `specs/01-mvp-ocr-tesseract-tkinter.md` ya está implementado
 - `controller/settings_controller.py` — conecta el toggle de tema y el selector de motor OCR de `SettingsView` con el model (`save_theme()`, `config.json`, keyring) y con `MainWindow.apply_theme()`.
 - `requirements.txt` — `pytesseract`, `Pillow`, `numpy`, `opencv-python`, `PySide6`, `argostranslate`, `anthropic`, `keyring`.
 - `config.json` — generado en runtime (no versionado, `.gitignore`), incluye `tesseract_path`, `theme` y `engine` (motor OCR seleccionado). La API key de Anthropic no se guarda acá, se guarda en el keyring del SO.
+- `docs/fixes-ocr.md` — changelog acumulativo de correcciones menores al motor Tesseract (sin trade-off para el usuario, sin spec propia), generado por la skill `/tesseract-bug`.
 
 No hay comandos de build/lint/test configurados en el repo (no hay `pyproject.toml` ni `Makefile`). Para correr la app: `python main.py`. Antes de asumir que existe un comando de test o lint, verificar con `ls`.
 
@@ -51,12 +52,14 @@ Este repositorio usa el flujo de trabajo basado en specs (skills `spec` y `spec-
 
 - `/spec <descripción>` — diseña una spec nueva sección por sección, haciendo preguntas de clarificación antes de proponer estructura. Guarda el resultado en `specs/NN-slug.md` con estado `Draft`.
 - `/spec-impl <NN-slug>` — implementa una spec ya marcada como `Approved` por el usuario. Crea (o reutiliza) una rama `spec-NN-slug`, muestra el resumen de la spec y avanza paso a paso, pausando después de cada paso del plan de implementación para revisión de diff.
+- `/tesseract-bug <descripción>` — skill de proyecto (`.claude/skills/tesseract-bug/`) para reportar fallos de reconocimiento del motor Tesseract, con imagen adjunta o ruta cuando sea posible. Diagnostica contra el pipeline real (`model/ocr_model.py`, `model/image_preprocessing.py`, `model/image_tiling.py`) y decide por el trade-off del arreglo: si nadie pierde nada, aplica un fix acotado en una rama `fix-ocr-<slug>` y lo documenta en `docs/fixes-ocr.md`; si el arreglo sacrifica otro caso de uso, redacta ella misma una spec nueva sección por sección (mismo método que `/spec`) en `specs/NN-slug.md` con estado `Draft`. Solo cubre el motor Tesseract, nunca edita en `master`/`main`, y nunca hace commit/merge/push.
 
 Reglas clave de este flujo:
 
 - Nunca se escribe código durante `/spec` — esa skill solo produce el archivo `.md` de la spec.
 - `/spec-impl` se niega a avanzar si el estado de la spec no significa "Approved" (en cualquier idioma).
 - La creación automática de rama está controlada por `AutoCreateBranch` en `specs/.spec-config.yml` (por defecto `true`).
+- `/tesseract-bug` siempre trabaja en una rama propia (`fix-ocr-<slug>`) que ella misma crea tras confirmación explícita; nunca edita código en `master` ni `main`.
 
 Cuando se implemente una feature de este proyecto, sigue este flujo en vez de escribir código directamente salvo que el usuario pida explícitamente saltarlo.
 

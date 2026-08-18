@@ -8,7 +8,7 @@ import keyring
 from PySide6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
 
 from controller.common import KEYRING_SERVICE, KEYRING_USERNAME
-from model.config_model import load_config, save_engine, save_theme
+from model.config_model import load_config, save_engine, save_min_word_confidence, save_theme
 from view.settings_view import SettingsView
 
 if TYPE_CHECKING:
@@ -19,8 +19,9 @@ class SettingsController:
     """Conecta SettingsView con el Model: al recibir `theme_toggled`, llama a
     save_theme() y le pide a MainWindow reaplicar el tema en caliente
     (paleta + stylesheet) sobre toda la ventana. También gestiona la
-    selección de motor OCR y la carga/reemplazo de la API key de Anthropic
-    en el keyring del sistema operativo.
+    selección de motor OCR, la carga/reemplazo de la API key de Anthropic
+    en el keyring del sistema operativo, y la persistencia del umbral de
+    confianza mínima por palabra del filtro de ruido de Tesseract.
     """
 
     def __init__(self, settings_view: SettingsView, main_window: "MainWindow") -> None:
@@ -33,6 +34,7 @@ class SettingsController:
         self.settings_view.theme_toggled.connect(self._on_theme_toggled)
         self.settings_view.engine_changed.connect(self._on_engine_changed)
         self.settings_view.api_key_submitted.connect(self._on_api_key_submitted)
+        self.settings_view.min_word_confidence_changed.connect(save_min_word_confidence)
 
         self._sync_initial_state()
 

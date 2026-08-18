@@ -10,9 +10,12 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSlider,
     QVBoxLayout,
     QWidget,
 )
+
+from model.config_model import load_config
 
 ENGINE_OPTIONS = ["Tesseract", "Claude Haiku"]
 TRANSLATION_ENGINE_OPTIONS = ["Argos Translate", "Claude Haiku (próximamente)"]
@@ -101,14 +104,16 @@ class ThemeSwitch(QPushButton):
 class SettingsView(QWidget):
     """Vista de contenido con las opciones de configuración: toggle de tema
     claro/oscuro, selector de motor OCR (Tesseract/Claude Haiku) con carga de
-    API key, y placeholder deshabilitado de motor de traducción. No contiene
-    lógica de negocio ni persiste ni llama al SDK `anthropic`/`keyring`
+    API key, control de confianza mínima por palabra para el filtro de ruido
+    de Tesseract, y placeholder deshabilitado de motor de traducción. No
+    contiene lógica de negocio ni persiste ni llama al SDK `anthropic`/`keyring`
     directamente; emite señales para que el controller decida qué hacer.
     """
 
     theme_toggled = Signal(str)  # "dark" | "light"
     engine_changed = Signal(str)  # "tesseract" | "claude"
     api_key_submitted = Signal(str)
+    min_word_confidence_changed = Signal(int)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea los widgets de la pantalla de Configuración."""
@@ -152,6 +157,17 @@ class SettingsView(QWidget):
         api_key_layout.addLayout(api_key_row)
         self.api_key_container.setVisible(False)
 
+        min_word_confidence_label = QLabel("Filtrar ruido (confianza mínima)")
+        initial_min_word_confidence = load_config().get("min_word_confidence", 95)
+        self.min_word_confidence_slider = QSlider(Qt.Horizontal)
+        self.min_word_confidence_slider.setRange(0, 100)
+        self.min_word_confidence_slider.setValue(initial_min_word_confidence)
+        self.min_word_confidence_value_label = QLabel(str(initial_min_word_confidence))
+
+        min_word_confidence_row = QHBoxLayout()
+        min_word_confidence_row.addWidget(self.min_word_confidence_slider)
+        min_word_confidence_row.addWidget(self.min_word_confidence_value_label)
+
         translation_engine_label = QLabel("Motor de traducción")
         self.translation_engine_combobox = QComboBox()
         self.translation_engine_combobox.addItems(TRANSLATION_ENGINE_OPTIONS)
@@ -165,6 +181,8 @@ class SettingsView(QWidget):
         layout.addWidget(self.engine_combobox)
         layout.addWidget(self.engine_cost_notice)
         layout.addWidget(self.api_key_container)
+        layout.addWidget(min_word_confidence_label)
+        layout.addLayout(min_word_confidence_row)
         layout.addWidget(translation_engine_label)
         layout.addWidget(self.translation_engine_combobox)
         layout.addStretch()
@@ -172,6 +190,12 @@ class SettingsView(QWidget):
         self.theme_switch.clicked.connect(self._on_theme_switch_clicked)
         self.engine_combobox.currentIndexChanged.connect(self._on_engine_combobox_changed)
         self.api_key_button.clicked.connect(self._on_api_key_button_clicked)
+        self.min_word_confidence_slider.valueChanged.connect(self._on_min_word_confidence_changed)
+
+    def _on_min_word_confidence_changed(self, value: int) -> None:
+        """Actualiza la etiqueta con el valor numérico y emite `min_word_confidence_changed`."""
+        self.min_word_confidence_value_label.setText(str(value))
+        self.min_word_confidence_changed.emit(value)
 
     def _on_theme_switch_clicked(self) -> None:
         """Actualiza el texto del switch y emite `theme_toggled` con el nuevo tema."""

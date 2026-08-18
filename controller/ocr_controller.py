@@ -87,13 +87,15 @@ class TranscriptionRunnable(QRunnable):
         cropped_image: Image.Image | None = None,
         claude_image: Image.Image | None = None,
         api_key: str | None = None,
+        min_word_confidence: int = 0,
     ) -> None:
         """Guarda los parámetros de la transcripción a ejecutar en `run()`.
 
         Si `engine` es `"claude"`, transcribe `claude_image` (imagen completa
         o ya recortada) vía Claude Haiku con `api_key`. Si es `"tesseract"`
         (default), transcribe `cropped_image` si no es None, o la imagen
-        completa en `image_path` (con tiling) en caso contrario.
+        completa en `image_path` (con tiling) en caso contrario, descartando
+        del resultado las palabras con confianza por debajo de `min_word_confidence`.
         """
         super().__init__()
         self.engine = engine
@@ -103,6 +105,7 @@ class TranscriptionRunnable(QRunnable):
         self.cropped_image = cropped_image
         self.claude_image = claude_image
         self.api_key = api_key
+        self.min_word_confidence = min_word_confidence
         self.signals = signals
 
     def run(self) -> None:
@@ -111,9 +114,13 @@ class TranscriptionRunnable(QRunnable):
             if self.engine == "claude":
                 result = transcribe_image_claude(self.claude_image, self.language_code, self.api_key)
             elif self.cropped_image is not None:
-                result = transcribe_cropped_image(self.cropped_image, self.language_code, self.tesseract_path)
+                result = transcribe_cropped_image(
+                    self.cropped_image, self.language_code, self.tesseract_path, self.min_word_confidence
+                )
             else:
-                result = transcribe_large_image(self.image_path, self.language_code, self.tesseract_path)
+                result = transcribe_large_image(
+                    self.image_path, self.language_code, self.tesseract_path, self.min_word_confidence
+                )
         except Exception as error:
             message = _format_claude_error(error) if self.engine == "claude" else str(error)
             self.signals.failed.emit(message)
@@ -448,7 +455,10 @@ class OcrController(QObject):
             if tesseract_path is None:
                 return
 
-        self._start_transcription(language_code, engine="tesseract", tesseract_path=tesseract_path)
+        min_word_confidence = load_config().get("min_word_confidence", 95)
+        self._start_transcription(
+            language_code, engine="tesseract", tesseract_path=tesseract_path, min_word_confidence=min_word_confidence
+        )
 
     def _start_transcription(
         self,
@@ -456,6 +466,7 @@ class OcrController(QObject):
         engine: str,
         tesseract_path: str | None = None,
         api_key: str | None = None,
+        min_word_confidence: int = 0,
     ) -> None:
         """Lanza la transcripción en el `QThreadPool` global y arranca el contador de segundos en vivo."""
         self.state.transcription_in_progress = True
@@ -483,6 +494,7 @@ class OcrController(QObject):
                 image_path=self.state.image_path,
                 tesseract_path=tesseract_path,
                 cropped_image=cropped_image,
+                min_word_confidence=min_word_confidence,
             )
         QThreadPool.globalInstance().start(runnable)
 
