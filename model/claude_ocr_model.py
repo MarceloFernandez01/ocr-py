@@ -57,7 +57,7 @@ def _encode_image(image: Image.Image) -> tuple[str, str]:
     return "image/jpeg", base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
-def transcribe_image_claude(image: Image.Image, language_code: str, api_key: str) -> str:
+def transcribe_image_claude(image: Image.Image, language_code: str, api_key: str) -> tuple[str, int, int]:
     """Transcribe `image` a texto vía Claude Haiku 4.5.
 
     Envía la imagen completa a la API de Anthropic (sin tiling ni
@@ -70,7 +70,8 @@ def transcribe_image_claude(image: Image.Image, language_code: str, api_key: str
     `APIConnectionError`, `RateLimitError`, etc.) se dejan propagar; quien
     llama a esta función es responsable de capturarlas.
 
-    Devuelve el texto reconocido.
+    Devuelve `(texto, input_tokens, output_tokens)`, con los tokens leídos de
+    `response.usage` para el cálculo de costo en `model/claude_usage_model.py`.
     """
     import anthropic
 
@@ -106,4 +107,4 @@ def transcribe_image_claude(image: Image.Image, language_code: str, api_key: str
         ],
     )
 
-    return response.content[0].text
+    return response.content[0].text, response.usage.input_tokens, response.usage.output_tokens

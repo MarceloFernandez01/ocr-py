@@ -8,7 +8,17 @@ import keyring
 from PySide6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
 
 from controller.common import KEYRING_SERVICE, KEYRING_USERNAME
-from model.config_model import load_config, save_engine, save_min_word_confidence, save_theme
+from model.config_model import (
+    load_config,
+    save_claude_cooldown_seconds,
+    save_claude_monthly_budget_usd,
+    save_engine,
+    save_live_claude_enabled,
+    save_min_word_confidence,
+    save_pixel_change_sensitivity,
+    save_text_similarity_threshold,
+    save_theme,
+)
 from view.settings_view import SettingsView
 
 if TYPE_CHECKING:
@@ -20,8 +30,10 @@ class SettingsController:
     save_theme() y le pide a MainWindow reaplicar el tema en caliente
     (paleta + stylesheet) sobre toda la ventana. También gestiona la
     selección de motor OCR, la carga/reemplazo de la API key de Anthropic
-    en el keyring del sistema operativo, y la persistencia del umbral de
-    confianza mínima por palabra del filtro de ruido de Tesseract.
+    en el keyring del sistema operativo, la persistencia del umbral de
+    confianza mínima por palabra del filtro de ruido de Tesseract, y la
+    persistencia de los controles de OCR en vivo (interruptor de Claude,
+    sensibilidad de texto/píxeles, cooldown y presupuesto mensual).
     """
 
     def __init__(self, settings_view: SettingsView, main_window: "MainWindow") -> None:
@@ -35,6 +47,11 @@ class SettingsController:
         self.settings_view.engine_changed.connect(self._on_engine_changed)
         self.settings_view.api_key_submitted.connect(self._on_api_key_submitted)
         self.settings_view.min_word_confidence_changed.connect(save_min_word_confidence)
+        self.settings_view.live_claude_toggled.connect(save_live_claude_enabled)
+        self.settings_view.text_similarity_threshold_changed.connect(save_text_similarity_threshold)
+        self.settings_view.pixel_change_sensitivity_changed.connect(save_pixel_change_sensitivity)
+        self.settings_view.claude_cooldown_changed.connect(save_claude_cooldown_seconds)
+        self.settings_view.claude_budget_changed.connect(save_claude_monthly_budget_usd)
 
         self._sync_initial_state()
 
@@ -77,9 +94,11 @@ class SettingsController:
             if not self._save_api_key(key):
                 self.settings_view.set_engine_silent("tesseract")
                 save_engine("tesseract")
+                self.main_window.refresh_spend_meter()
                 return
 
         save_engine(engine)
+        self.main_window.refresh_spend_meter()
 
     def _on_api_key_submitted(self, key: str) -> None:
         """Guarda la key reemplazada vía el botón "Cambiar" y persiste el motor Claude."""
@@ -88,6 +107,7 @@ class SettingsController:
         else:
             self.settings_view.set_engine_silent("tesseract")
             save_engine("tesseract")
+        self.main_window.refresh_spend_meter()
 
     def _save_api_key(self, key: str) -> bool:
         """Guarda `key` en el keyring del SO y enmascara el campo en la vista.

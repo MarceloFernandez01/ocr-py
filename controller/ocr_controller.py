@@ -1,6 +1,7 @@
 """Conecta los eventos de la vista con la lógica del Model."""
 
 import time
+from typing import TYPE_CHECKING
 
 import keyring
 from PIL import Image
@@ -14,14 +15,19 @@ from controller.common import (
     KEYRING_SERVICE,
     KEYRING_USERNAME,
     LANGUAGE_MAP,
+    format_claude_error,
     processing_label,
     prompt_tesseract_path,
 )
 from model.claude_ocr_model import transcribe_image_claude
+from model.claude_usage_model import register_call
 from model.config_model import load_config
 from model.ocr_model import transcribe_cropped_image, transcribe_large_image
 from model.tesseract_locator import resolve_tesseract_path
 from view.ocr_view import OcrView
+
+if TYPE_CHECKING:
+    from view.main_window import MainWindow
 
 PREVIEW_RESIZE_DEBOUNCE_MS = 120
 CROP_MIN_SIZE = 10
@@ -43,28 +49,6 @@ def _fit_within_box(source_size: tuple[int, int], box_size: tuple[int, int]) -> 
     if source_ratio > box_ratio:
         return box_width, max(1, round(source_height / source_width * box_width))
     return max(1, round(source_width / source_height * box_height)), box_height
-
-
-def _format_claude_error(error: Exception) -> str:
-    """Traduce una excepción del SDK `anthropic` a un mensaje legible en español.
-
-    Import perezoso de `anthropic` (mismo patrón que `claude_ocr_model.py`):
-    esta función solo se llama tras una transcripción fallida con el motor Claude.
-    """
-    import anthropic
-
-    if isinstance(error, anthropic.AuthenticationError):
-        return "La API key de Anthropic no es válida. Por favor cambierla desde Configuración."
-    if isinstance(error, anthropic.APIConnectionError):
-        return "No se pudo conectar con la API de Anthropic. Por favor revise la conexión a internet."
-    if isinstance(error, anthropic.RateLimitError):
-        return "Se alcanzó el límite de uso (rate limit) de la API de Anthropic. Espere unos minutos y vuelva a intentar."
-    if isinstance(error, anthropic.APIStatusError):
-        detail = error.message
-        if isinstance(error.body, dict):
-            detail = error.body.get("error", {}).get("message", detail)
-        return f"La API de Anthropic devolvió un error ({error.status_code}): {detail}"
-    return str(error)
 
 
 class TranscriptionSignals(QObject):
@@ -109,10 +93,17 @@ class TranscriptionRunnable(QRunnable):
         self.signals = signals
 
     def run(self) -> None:
-        """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado."""
+        """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado.
+
+        Con el motor Claude, además desempaqueta los tokens consumidos y
+        registra el gasto vía `register_call` antes de emitir el resultado.
+        """
         try:
             if self.engine == "claude":
-                result = transcribe_image_claude(self.claude_image, self.language_code, self.api_key)
+                result, input_tokens, output_tokens = transcribe_image_claude(
+                    self.claude_image, self.language_code, self.api_key
+                )
+                register_call(input_tokens, output_tokens)
             elif self.cropped_image is not None:
                 result = transcribe_cropped_image(
                     self.cropped_image, self.language_code, self.tesseract_path, self.min_word_confidence
@@ -122,7 +113,7 @@ class TranscriptionRunnable(QRunnable):
                     self.image_path, self.language_code, self.tesseract_path, self.min_word_confidence
                 )
         except Exception as error:
-            message = _format_claude_error(error) if self.engine == "claude" else str(error)
+            message = format_claude_error(error) if self.engine == "claude" else str(error)
             self.signals.failed.emit(message)
         else:
             self.signals.succeeded.emit(result)
@@ -140,15 +131,21 @@ class AppState:
 class OcrController(QObject):
     """Conecta los botones de la vista con las acciones de carga y transcripción."""
 
-    def __init__(self, view: OcrView) -> None:
-        """Registra los callbacks de la vista y crea el estado en memoria."""
+    def __init__(self, view: OcrView, main_window: "MainWindow | None" = None) -> None:
+        """Registra los callbacks de la vista y crea el estado en memoria.
+
+        `main_window`, si se pasa, se usa para refrescar la barra de gasto
+        (`refresh_spend_meter()`) tras cada transcripción con el motor Claude.
+        """
         super().__init__()
         self.view = view
+        self.main_window = main_window
         self.state = AppState()
         self._preview_source: Image.Image | None = None
         self._preview_image_rect = QRectF()
         self._crop_box: tuple[int, int, int, int] | None = None
         self._crop_drag_start: QPointF | None = None
+        self._last_engine: str = "tesseract"
 
         self._zoom: float = 1.0
         self._zoom_center: tuple[float, float] | None = None
@@ -470,6 +467,7 @@ class OcrController(QObject):
     ) -> None:
         """Lanza la transcripción en el `QThreadPool` global y arranca el contador de segundos en vivo."""
         self.state.transcription_in_progress = True
+        self._last_engine = engine
         self.view.disable_transcribe_button()
         self._transcription_start = time.monotonic()
 
@@ -508,9 +506,15 @@ class OcrController(QObject):
         self.view.set_result_text(processing_label(self._transcription_start))
 
     def _on_transcription_succeeded(self, result: str) -> None:
-        """Muestra el resultado de la transcripción al terminar con éxito."""
+        """Muestra el resultado de la transcripción al terminar con éxito.
+
+        Con el motor Claude, refresca la barra de gasto de `MainWindow` (el
+        gasto ya quedó registrado en `TranscriptionRunnable.run()`).
+        """
         self._counter_timer.stop()
         self.view.set_result_text(result)
+        if self._last_engine == "claude" and self.main_window is not None:
+            self.main_window.refresh_spend_meter()
         self._finish_transcription()
 
     def _on_transcription_failed(self, error_message: str) -> None:

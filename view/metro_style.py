@@ -286,6 +286,32 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
     background: none;
 }}
+
+QWidget#spendMeter {{
+    background-color: rgb(45, 45, 45);
+    border-top: 1px solid rgb(80, 80, 80);
+}}
+
+QProgressBar#spendMeterBar {{
+    background-color: rgb(35, 35, 35);
+    border: none;
+    border-radius: 3px;
+    max-height: 6px;
+}}
+
+QProgressBar#spendMeterBar::chunk {{
+    background-color: {ACCENT};
+    border-radius: 3px;
+}}
+
+QProgressBar#spendMeterBar[overBudget="true"]::chunk {{
+    background-color: rgb(200, 60, 60);
+}}
+
+QLabel#spendMeterLabel {{
+    font-size: 12px;
+    color: rgb(200, 200, 200);
+}}
 """
 
 METRO_STYLESHEET_LIGHT = f"""
@@ -561,6 +587,32 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
 
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
     background: none;
+}}
+
+QWidget#spendMeter {{
+    background-color: rgb(230, 230, 230);
+    border-top: 1px solid rgb(200, 200, 200);
+}}
+
+QProgressBar#spendMeterBar {{
+    background-color: rgb(255, 255, 255);
+    border: 1px solid rgb(200, 200, 200);
+    border-radius: 3px;
+    max-height: 6px;
+}}
+
+QProgressBar#spendMeterBar::chunk {{
+    background-color: {ACCENT};
+    border-radius: 3px;
+}}
+
+QProgressBar#spendMeterBar[overBudget="true"]::chunk {{
+    background-color: rgb(200, 60, 60);
+}}
+
+QLabel#spendMeterLabel {{
+    font-size: 12px;
+    color: rgb(80, 80, 80);
 }}
 """
 
