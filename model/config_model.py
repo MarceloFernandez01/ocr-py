@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from datetime import datetime
 
 if getattr(sys, "frozen", False):
     _BASE_DIR = os.path.dirname(sys.executable)
@@ -27,6 +28,15 @@ def load_config() -> dict:
     config.setdefault("theme", "dark")
     config.setdefault("engine", "tesseract")
     config.setdefault("min_word_confidence", 95)
+    config.setdefault("live_claude_enabled", False)
+    config.setdefault("text_similarity_threshold", 90)
+    config.setdefault("pixel_change_sensitivity", 2)
+    config.setdefault("claude_cooldown_seconds", 10)
+    config.setdefault("claude_monthly_budget_usd", 5.0)
+    config.setdefault(
+        "claude_spend",
+        {"month": datetime.now().strftime("%Y-%m"), "usd": 0.0, "calls": 0},
+    )
     return config
 
 
@@ -75,5 +85,79 @@ def save_min_word_confidence(value: int) -> None:
     """
     config = load_config()
     config["min_word_confidence"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_live_claude_enabled(value: bool) -> None:
+    """Persiste si Claude está habilitado como motor de OCR en vivo.
+
+    Args:
+        value: solo tiene efecto si `engine` es `"claude"`; con `False`, OCR
+            en vivo usa Tesseract sin importar el motor configurado.
+    """
+    config = load_config()
+    config["live_claude_enabled"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_text_similarity_threshold(value: int) -> None:
+    """Persiste el umbral de similitud de texto usado en OCR en vivo.
+
+    Args:
+        value: entero 0-100. Dos textos se consideran iguales si su similitud
+            es mayor o igual a este valor; `0` desactiva el filtro.
+    """
+    config = load_config()
+    config["text_similarity_threshold"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_pixel_change_sensitivity(value: int) -> None:
+    """Persiste la sensibilidad del diff de píxeles en OCR en vivo.
+
+    Args:
+        value: entero 0-100, en centésimas de diferencia media de píxeles.
+    """
+    config = load_config()
+    config["pixel_change_sensitivity"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_claude_cooldown_seconds(value: int) -> None:
+    """Persiste el tiempo mínimo entre llamadas a Claude en OCR en vivo.
+
+    Args:
+        value: entero 1-120, en segundos.
+    """
+    config = load_config()
+    config["claude_cooldown_seconds"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_claude_monthly_budget_usd(value: float) -> None:
+    """Persiste el presupuesto mensual de referencia para el medidor de gasto.
+
+    Args:
+        value: monto en USD. Solo informa, no bloquea llamadas.
+    """
+    config = load_config()
+    config["claude_monthly_budget_usd"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_claude_spend(value: dict) -> None:
+    """Persiste el acumulador de gasto mensual de Claude en config.json.
+
+    Args:
+        value: diccionario con `month` (`"YYYY-MM"`), `usd` y `calls`.
+    """
+    config = load_config()
+    config["claude_spend"] = value
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
