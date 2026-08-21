@@ -161,7 +161,9 @@ class LiveOcrController(QObject):
     con `live_claude_enabled`, dispara `transcribe_image_claude` en el
     `QThreadPool` global (con cooldown configurable) y muestra solo su
     resultado; en caso contrario, muestra el resultado de Tesseract),
-    y actualiza `LiveOcrView` con cada captura/resultado.
+    y actualiza `LiveOcrView` con cada captura/resultado. Propaga un estado
+    (Detenido/Transcribiendo/Analizando…/Pausado) a la vista y al overlay en
+    cada transición, y sincroniza el botón de traducción de ambos widgets.
     Expone `stop()` para que `MainWindow` lo invoque al navegar afuera de la vista.
     """
 
@@ -195,6 +197,7 @@ class LiveOcrController(QObject):
         self._translation_worker: TranslationSignals | None = None
         self._last_transcribed_text: str | None = None
         self._interacting: bool = False
+        self._status: str = "Detenido"
 
         self._counter_timer = QTimer(self)
         self._counter_timer.timeout.connect(self._update_counter)
@@ -206,6 +209,17 @@ class LiveOcrController(QObject):
     def _use_claude_live(self) -> bool:
         """Indica si el ciclo en vivo debe usar Claude (motor Claude + interruptor de vivo encendido)."""
         return self._engine == "claude" and self._live_claude_enabled
+
+    def _set_status(self, status: str) -> None:
+        """Actualiza `_status` y lo propaga a la vista y, si existe, al overlay.
+
+        Args:
+            status: uno de "Detenido", "Transcribiendo", "Analizando…" o "Pausado".
+        """
+        self._status = status
+        self.view.set_status(status)
+        if self._overlay is not None:
+            self._overlay.set_status(status)
 
     def activate_selection(self) -> None:
         """Crea (o recrea) el overlay en posición/tamaño default. No arranca el polling."""
@@ -230,12 +244,16 @@ class LiveOcrController(QObject):
         self._overlay.geometry_changed.connect(self._on_interaction_finished)
         self._overlay.interaction_started.connect(self._on_interaction_started)
         self._overlay.toggle_transcription_requested.connect(self.toggle_transcription)
+        self._overlay.translate_toggle_requested.connect(self.on_translate_toggled)
         self._overlay.show()
 
         self.view.enable_transcription_button()
         self.view.set_transcription_button_running(False)
         self._overlay.set_toggle_enabled(True)
         self._overlay.set_running(False)
+        self._overlay.set_translate_enabled(False)
+        self._overlay.set_translate_active(self._translation_active)
+        self._set_status("Detenido")
 
     def _disconnect_overlay_signals(self) -> None:
         """Desconecta las señales del overlay vigente antes de cerrarlo/descartarlo."""
@@ -243,6 +261,7 @@ class LiveOcrController(QObject):
         self._overlay.geometry_changed.disconnect(self._on_interaction_finished)
         self._overlay.interaction_started.disconnect(self._on_interaction_started)
         self._overlay.toggle_transcription_requested.disconnect(self.toggle_transcription)
+        self._overlay.translate_toggle_requested.disconnect(self.on_translate_toggled)
 
     def toggle_transcription(self) -> None:
         """Arranca o detiene el polling de transcripción según el estado actual del `QTimer`."""
@@ -276,19 +295,24 @@ class LiveOcrController(QObject):
             self._last_claude_call = None
             self._pending_capture = None
 
+            self.view.set_transcription_button_running(True)
+            if self._overlay is not None:
+                self._overlay.set_running(True)
+                self._overlay.set_translate_enabled(True)
+            self._set_status("Transcribiendo")
+
             self._timer = QTimer(self)
             self._timer.timeout.connect(self._poll)
             self._timer.start(POLL_INTERVAL_MS)
             self._poll()
-            self.view.set_transcription_button_running(True)
-            if self._overlay is not None:
-                self._overlay.set_running(True)
         else:
             self._timer.stop()
             self._timer = None
             self.view.set_transcription_button_running(False)
             if self._overlay is not None:
                 self._overlay.set_running(False)
+                self._overlay.set_translate_enabled(False)
+            self._set_status("Pausado")
 
     def stop(self) -> None:
         """Detiene el polling y cierra/destruye el overlay si estaba activo."""
@@ -316,6 +340,7 @@ class LiveOcrController(QObject):
         self.view.enable_activate_button()
         self.view.disable_transcription_button()
         self.view.set_transcription_button_running(False)
+        self._set_status("Detenido")
 
     def _on_overlay_closed(self) -> None:
         """Detiene el polling al cerrar el overlay con la X, sin tocar el resto del estado."""
@@ -334,6 +359,7 @@ class LiveOcrController(QObject):
         self.view.enable_activate_button()
         self.view.disable_transcription_button()
         self.view.set_transcription_button_running(False)
+        self._set_status("Detenido")
 
     def _on_interaction_started(self) -> None:
         """Pausa la captura mientras se arrastra/redimensiona la región, sin detener el `QTimer`."""
@@ -394,6 +420,7 @@ class LiveOcrController(QObject):
 
     def _start_transcription(self, image: Image.Image) -> None:
         """Lanza la transcripción de `image` en el `QThreadPool` global, reemplazando el worker vigente."""
+        self._set_status("Analizando…")
         language_code = LANGUAGE_MAP[self.view.get_selected_language()]
 
         self._transcription_start = time.monotonic()
@@ -428,6 +455,7 @@ class LiveOcrController(QObject):
         self._counter_timer.stop()
         self._worker.deleteLater()
         self._worker = None
+        self._set_status("Transcribiendo")
 
         if not has_text_changed(self._last_detector_text, text, self._text_similarity_threshold):
             return
@@ -451,6 +479,7 @@ class LiveOcrController(QObject):
         self._counter_timer.stop()
         self._worker.deleteLater()
         self._worker = None
+        self._set_status("Transcribiendo")
         QMessageBox.critical(self.view, "Error al transcribir", error_message)
 
     def _cooldown_elapsed(self) -> bool:
@@ -474,6 +503,7 @@ class LiveOcrController(QObject):
         """Lanza `transcribe_image_claude` en el `QThreadPool` global y arranca
         el contador de segundos mientras se espera la respuesta.
         """
+        self._set_status("Analizando…")
         self._last_claude_call = time.monotonic()
         language_code = LANGUAGE_MAP[self.view.get_selected_language()]
 
@@ -497,6 +527,7 @@ class LiveOcrController(QObject):
         self._counter_timer.stop()
         self._claude_worker.deleteLater()
         self._claude_worker = None
+        self._set_status("Transcribiendo")
 
         register_call(input_tokens, output_tokens)
         if self.main_window is not None:
@@ -525,13 +556,22 @@ class LiveOcrController(QObject):
         self.view.set_transcription_button_running(False)
         if self._overlay is not None:
             self._overlay.set_running(False)
+            self._overlay.set_translate_enabled(False)
+        self._set_status("Pausado")
 
         QMessageBox.critical(self.view, "Error al transcribir con Claude", error_message)
 
     def on_translate_toggled(self) -> None:
-        """Alterna `_translation_active`; al activar, traduce el texto ya reconocido si existe."""
+        """Alterna `_translation_active`; al activar, traduce el texto ya reconocido si existe.
+
+        Conectado tanto a `translate_toggled` de `LiveOcrView` como a
+        `translate_toggle_requested` del overlay: cualquiera de los dos botones
+        dispara este mismo handler, que sincroniza el estado marcado de ambos.
+        """
         self._translation_active = not self._translation_active
         self.view.set_translation_button_active(self._translation_active)
+        if self._overlay is not None:
+            self._overlay.set_translate_active(self._translation_active)
         if self._translation_active and self._last_transcribed_text:
             self._start_translation(self._last_transcribed_text)
 
