@@ -1,6 +1,6 @@
 # Spec 16: Filtro de cambio de texto en OCR en vivo, motor Claude Haiku y medidor de consumo
 
-**Estado:** Aprobado
+**Estado:** Implementado
 **Dependencias:** `specs/08-ocr-en-vivo.md` (ciclo de polling y diff de píxeles), `specs/09-live-ocr-boton-iniciar-transcripcion.md`, `specs/11-traduccion-ocr-en-vivo.md` (traducción encadenada al resultado), `specs/13-ocr-claude-motor-alternativo.md` (motor Claude, clave `engine`, API key en keyring; esta spec levanta su exclusión de OCR en vivo), `specs/15-filtro-confianza-palabra-ocr.md` (patrón de control en Configuración persistido en `config.json`)
 **Fecha:** 2026-08-19
 
