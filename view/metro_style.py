@@ -216,6 +216,11 @@ QLabel#liveStatusLabel {{
     font-weight: bold;
 }}
 
+QLabel#hotkeyWarningLabel {{
+    color: rgb(200, 60, 60);
+    font-weight: bold;
+}}
+
 QFrame#sidebarSeparator {{
     background-color: rgb(80, 80, 80);
 }}
@@ -542,6 +547,11 @@ QPushButton#overlayTranslateButton:disabled {{
 
 QLabel#liveStatusLabel {{
     color: {ACCENT};
+    font-weight: bold;
+}}
+
+QLabel#hotkeyWarningLabel {{
+    color: rgb(200, 60, 60);
     font-weight: bold;
 }}
 

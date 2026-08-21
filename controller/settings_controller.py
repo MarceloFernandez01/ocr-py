@@ -8,17 +8,21 @@ import keyring
 from PySide6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
 
 from controller.common import KEYRING_SERVICE, KEYRING_USERNAME
+from controller.global_hotkeys import HOTKEY_CLOSE_ID, HOTKEY_TOGGLE_ID
 from model.config_model import (
     load_config,
     save_claude_cooldown_seconds,
     save_claude_monthly_budget_usd,
     save_engine,
+    save_hotkey_close,
+    save_hotkey_toggle,
     save_live_claude_enabled,
     save_min_word_confidence,
     save_pixel_change_sensitivity,
     save_text_similarity_threshold,
     save_theme,
 )
+from model.hotkey_model import has_modifier
 from view.settings_view import SettingsView
 
 if TYPE_CHECKING:
@@ -33,7 +37,9 @@ class SettingsController:
     en el keyring del sistema operativo, la persistencia del umbral de
     confianza mínima por palabra del filtro de ruido de Tesseract, y la
     persistencia de los controles de OCR en vivo (interruptor de Claude,
-    sensibilidad de texto/píxeles, cooldown y presupuesto mensual).
+    sensibilidad de texto/píxeles, cooldown y presupuesto mensual), y la
+    validación/registro de los atajos globales (delegado en
+    `LiveOcrController.register_hotkey()`, vía `main_window`).
     """
 
     def __init__(self, settings_view: SettingsView, main_window: "MainWindow") -> None:
@@ -52,6 +58,8 @@ class SettingsController:
         self.settings_view.pixel_change_sensitivity_changed.connect(save_pixel_change_sensitivity)
         self.settings_view.claude_cooldown_changed.connect(save_claude_cooldown_seconds)
         self.settings_view.claude_budget_changed.connect(save_claude_monthly_budget_usd)
+        self.settings_view.hotkey_toggle_changed.connect(self._on_hotkey_toggle_changed)
+        self.settings_view.hotkey_close_changed.connect(self._on_hotkey_close_changed)
 
         self._sync_initial_state()
 
@@ -126,3 +134,55 @@ class SettingsController:
 
         self.settings_view.set_api_key_saved(True)
         return True
+
+    def _on_hotkey_toggle_changed(self, sequence_text: str) -> None:
+        """Valida y re-registra el atajo de pausar/reanudar; persiste si tiene éxito."""
+        self._apply_hotkey_change(
+            hotkey_id=HOTKEY_TOGGLE_ID,
+            sequence_text=sequence_text,
+            default="Ctrl+Shift+P",
+            config_key="hotkey_toggle",
+            save_fn=save_hotkey_toggle,
+            revert_fn=self.settings_view.set_hotkey_toggle_silent,
+        )
+
+    def _on_hotkey_close_changed(self, sequence_text: str) -> None:
+        """Valida y re-registra el atajo de cerrar overlay; persiste si tiene éxito."""
+        self._apply_hotkey_change(
+            hotkey_id=HOTKEY_CLOSE_ID,
+            sequence_text=sequence_text,
+            default="Ctrl+Shift+Q",
+            config_key="hotkey_close",
+            save_fn=save_hotkey_close,
+            revert_fn=self.settings_view.set_hotkey_close_silent,
+        )
+
+    def _apply_hotkey_change(
+        self,
+        hotkey_id: int,
+        sequence_text: str,
+        default: str,
+        config_key: str,
+        save_fn,
+        revert_fn,
+    ) -> None:
+        """Valida `sequence_text` y la reintenta registrar en `LiveOcrController`;
+        si la validación o el registro fallan, revierte el campo al valor
+        persistido y muestra el aviso correspondiente, sin persistir el cambio.
+        """
+        if not has_modifier(sequence_text):
+            revert_fn(load_config().get(config_key, default))
+            self.settings_view.set_hotkey_warning(
+                "El atajo debe incluir al menos un modificador (Ctrl, Alt o Shift)."
+            )
+            return
+
+        if not self.main_window.live_ocr_controller.register_hotkey(hotkey_id, sequence_text):
+            revert_fn(load_config().get(config_key, default))
+            self.settings_view.set_hotkey_warning(
+                "Windows no pudo registrar el atajo: probablemente otra aplicación ya lo usa."
+            )
+            return
+
+        save_fn(sequence_text)
+        self.settings_view.set_hotkey_warning("")

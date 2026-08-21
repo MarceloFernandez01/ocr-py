@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Property, QEasingCurve, QPropertyAnimation, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QDoubleValidator, QPainter
+from PySide6.QtGui import QColor, QDoubleValidator, QKeySequence, QPainter
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
+    QKeySequenceEdit,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -112,7 +113,8 @@ class SettingsView(QWidget):
     API key, control de confianza mínima por palabra para el filtro de ruido
     de Tesseract, sensibilidad del filtro de cambio de texto y de píxeles en
     OCR en vivo, interruptor y controles de Claude en OCR en vivo (cooldown,
-    presupuesto mensual), y placeholder deshabilitado de motor de traducción.
+    presupuesto mensual), atajos globales de OCR en vivo (pausar/reanudar,
+    cerrar overlay) y placeholder deshabilitado de motor de traducción.
     No contiene lógica de negocio ni persiste ni llama al SDK
     `anthropic`/`keyring` directamente; emite señales para que el controller
     decida qué hacer.
@@ -127,6 +129,8 @@ class SettingsView(QWidget):
     pixel_change_sensitivity_changed = Signal(int)
     claude_cooldown_changed = Signal(int)
     claude_budget_changed = Signal(float)
+    hotkey_toggle_changed = Signal(str)
+    hotkey_close_changed = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea los widgets de la pantalla de Configuración."""
@@ -256,6 +260,32 @@ class SettingsView(QWidget):
         claude_budget_layout.addWidget(self.claude_budget_input)
         self.claude_budget_container.setVisible(False)
 
+        hotkeys_label = QLabel("OCR en vivo · atajos globales")
+
+        hotkey_toggle_label = QLabel("Atajo pausar/reanudar")
+        initial_hotkey_toggle = initial_config.get("hotkey_toggle", "Ctrl+Shift+P")
+        self.hotkey_toggle_edit = QKeySequenceEdit(QKeySequence(initial_hotkey_toggle))
+
+        hotkey_close_label = QLabel("Atajo cerrar overlay")
+        initial_hotkey_close = initial_config.get("hotkey_close", "Ctrl+Shift+Q")
+        self.hotkey_close_edit = QKeySequenceEdit(QKeySequence(initial_hotkey_close))
+
+        hotkeys_row = QHBoxLayout()
+        hotkey_toggle_layout = QVBoxLayout()
+        hotkey_toggle_layout.addWidget(hotkey_toggle_label)
+        hotkey_toggle_layout.addWidget(self.hotkey_toggle_edit)
+        hotkey_close_layout = QVBoxLayout()
+        hotkey_close_layout.addWidget(hotkey_close_label)
+        hotkey_close_layout.addWidget(self.hotkey_close_edit)
+        hotkeys_row.addLayout(hotkey_toggle_layout)
+        hotkeys_row.addLayout(hotkey_close_layout)
+        hotkeys_row.addStretch()
+
+        self.hotkey_warning_label = QLabel("")
+        self.hotkey_warning_label.setObjectName("hotkeyWarningLabel")
+        self.hotkey_warning_label.setWordWrap(True)
+        self.hotkey_warning_label.setVisible(False)
+
         translation_engine_label = QLabel("Motor de traducción")
         self.translation_engine_combobox = QComboBox()
         self.translation_engine_combobox.addItems(TRANSLATION_ENGINE_OPTIONS)
@@ -278,6 +308,9 @@ class SettingsView(QWidget):
         layout.addWidget(self.live_claude_container)
         layout.addWidget(self.claude_cooldown_container)
         layout.addWidget(self.claude_budget_container)
+        layout.addWidget(hotkeys_label)
+        layout.addLayout(hotkeys_row)
+        layout.addWidget(self.hotkey_warning_label)
         layout.addWidget(translation_engine_label)
         layout.addWidget(self.translation_engine_combobox)
         layout.addStretch()
@@ -291,6 +324,8 @@ class SettingsView(QWidget):
         self.live_claude_switch.clicked.connect(self._on_live_claude_switch_clicked)
         self.claude_cooldown_slider.valueChanged.connect(self._on_claude_cooldown_changed)
         self.claude_budget_input.editingFinished.connect(self._on_claude_budget_changed)
+        self.hotkey_toggle_edit.editingFinished.connect(self._on_hotkey_toggle_edit_finished)
+        self.hotkey_close_edit.editingFinished.connect(self._on_hotkey_close_edit_finished)
 
     def _on_min_word_confidence_changed(self, value: int) -> None:
         """Actualiza la etiqueta con el valor numérico y emite `min_word_confidence_changed`."""
@@ -324,6 +359,35 @@ class SettingsView(QWidget):
         except ValueError:
             return
         self.claude_budget_changed.emit(value)
+
+    def _on_hotkey_toggle_edit_finished(self) -> None:
+        """Emite `hotkey_toggle_changed` con la combinación ingresada."""
+        self.hotkey_toggle_changed.emit(self.hotkey_toggle_edit.keySequence().toString())
+
+    def _on_hotkey_close_edit_finished(self) -> None:
+        """Emite `hotkey_close_changed` con la combinación ingresada."""
+        self.hotkey_close_changed.emit(self.hotkey_close_edit.keySequence().toString())
+
+    def set_hotkey_toggle_silent(self, sequence_text: str) -> None:
+        """Sincroniza el campo de atajo de pausar/reanudar sin emitir `hotkey_toggle_changed`
+        (usado por el controller para revertir tras una validación o un registro fallidos).
+        """
+        self.hotkey_toggle_edit.blockSignals(True)
+        self.hotkey_toggle_edit.setKeySequence(QKeySequence(sequence_text))
+        self.hotkey_toggle_edit.blockSignals(False)
+
+    def set_hotkey_close_silent(self, sequence_text: str) -> None:
+        """Sincroniza el campo de atajo de cerrar overlay sin emitir `hotkey_close_changed`
+        (usado por el controller para revertir tras una validación o un registro fallidos).
+        """
+        self.hotkey_close_edit.blockSignals(True)
+        self.hotkey_close_edit.setKeySequence(QKeySequence(sequence_text))
+        self.hotkey_close_edit.blockSignals(False)
+
+    def set_hotkey_warning(self, message: str) -> None:
+        """Muestra `message` bajo los campos de atajos; una cadena vacía lo oculta."""
+        self.hotkey_warning_label.setText(message)
+        self.hotkey_warning_label.setVisible(bool(message))
 
     def _on_theme_switch_clicked(self) -> None:
         """Actualiza el texto del switch y emite `theme_toggled` con el nuevo tema."""

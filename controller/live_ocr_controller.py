@@ -214,8 +214,10 @@ class LiveOcrController(QObject):
         self._hotkey_manager = GlobalHotkeyManager(self)
         self._hotkey_manager.triggered.connect(self._on_hotkey_triggered)
         config = load_config()
-        self._hotkey_manager.register(HOTKEY_TOGGLE_ID, config.get("hotkey_toggle", "Ctrl+Shift+P"))
-        self._hotkey_manager.register(HOTKEY_CLOSE_ID, config.get("hotkey_close", "Ctrl+Shift+Q"))
+        self._hotkey_toggle_text = config.get("hotkey_toggle", "Ctrl+Shift+P")
+        self._hotkey_close_text = config.get("hotkey_close", "Ctrl+Shift+Q")
+        self._hotkey_manager.register(HOTKEY_TOGGLE_ID, self._hotkey_toggle_text)
+        self._hotkey_manager.register(HOTKEY_CLOSE_ID, self._hotkey_close_text)
 
     def _use_claude_live(self) -> bool:
         """Indica si el ciclo en vivo debe usar Claude (motor Claude + interruptor de vivo encendido)."""
@@ -264,6 +266,7 @@ class LiveOcrController(QObject):
         self._overlay.set_running(False)
         self._overlay.set_translate_enabled(False)
         self._overlay.set_translate_active(self._translation_active)
+        self._overlay.set_hotkey_labels(self._hotkey_toggle_text, self._hotkey_close_text)
         self._set_status("Detenido")
 
     def _disconnect_overlay_signals(self) -> None:
@@ -352,6 +355,23 @@ class LiveOcrController(QObject):
         self.view.disable_transcription_button()
         self.view.set_transcription_button_running(False)
         self._set_status("Detenido")
+
+    def register_hotkey(self, hotkey_id: int, sequence_text: str) -> bool:
+        """Reintenta registrar `sequence_text` bajo `hotkey_id` en el `GlobalHotkeyManager`.
+
+        Si tiene éxito, actualiza el texto guardado y refresca el tooltip del
+        overlay vigente (si existe). Usado por `SettingsController` al cambiar
+        un atajo desde Configuración.
+        """
+        success = self._hotkey_manager.register(hotkey_id, sequence_text)
+        if success:
+            if hotkey_id == HOTKEY_TOGGLE_ID:
+                self._hotkey_toggle_text = sequence_text
+            elif hotkey_id == HOTKEY_CLOSE_ID:
+                self._hotkey_close_text = sequence_text
+            if self._overlay is not None:
+                self._overlay.set_hotkey_labels(self._hotkey_toggle_text, self._hotkey_close_text)
+        return success
 
     def _on_hotkey_triggered(self, hotkey_id: int) -> None:
         """Reacciona a un atajo global: pausa/reanuda la transcripción (creando el

@@ -56,7 +56,13 @@ class ScreenOverlay(QWidget):
         self._translate_button.setObjectName("overlayTranslateButton")
         self._translate_button.setCheckable(True)
         self._translate_button.setEnabled(False)
+        self._translate_button.setToolTip("Activar/desactivar traducción")
         self._translate_button.clicked.connect(self.translate_toggle_requested)
+
+        self._toggle_hotkey_text = ""
+        self._close_hotkey_text = ""
+        self._update_toggle_tooltip()
+        self._close_button.setToolTip("Cerrar overlay")
 
         self._drag_offset: QPoint | None = None
         self._resize_handle: str | None = None
@@ -116,6 +122,29 @@ class ScreenOverlay(QWidget):
     def set_running(self, running: bool) -> None:
         """Actualiza el ícono del botón de pausa/reanudar según si la transcripción corre."""
         self._toggle_button.setText("⏸" if running else "▶")
+        self._update_toggle_tooltip()
+
+    def set_hotkey_labels(self, toggle_text: str, close_text: str) -> None:
+        """Recalcula los tooltips de pausar/reanudar y cerrar con el atajo vigente.
+
+        Args:
+            toggle_text: combinación configurada para pausar/reanudar (ej. "Ctrl+Shift+P").
+            close_text: combinación configurada para cerrar el overlay.
+        """
+        self._toggle_hotkey_text = toggle_text
+        self._close_hotkey_text = close_text
+        self._update_toggle_tooltip()
+        self._close_button.setToolTip(
+            f"Cerrar overlay ({close_text})" if close_text else "Cerrar overlay"
+        )
+
+    def _update_toggle_tooltip(self) -> None:
+        """Recalcula el tooltip del botón de pausa/reanudar según su ícono y el atajo vigente."""
+        action = "Pausar transcripción" if self._toggle_button.text() == "⏸" else "Iniciar transcripción"
+        if self._toggle_hotkey_text:
+            self._toggle_button.setToolTip(f"{action} ({self._toggle_hotkey_text})")
+        else:
+            self._toggle_button.setToolTip(action)
 
     def set_toggle_enabled(self, enabled: bool) -> None:
         """Habilita o deshabilita el botón de pausa/reanudar."""
