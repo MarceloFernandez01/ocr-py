@@ -37,6 +37,8 @@ def load_config() -> dict:
         "claude_spend",
         {"month": datetime.now().strftime("%Y-%m"), "usd": 0.0, "calls": 0},
     )
+    config.setdefault("hotkey_toggle", "Ctrl+Shift+P")
+    config.setdefault("hotkey_close", "Ctrl+Shift+Q")
     return config
 
 
@@ -159,5 +161,29 @@ def save_claude_spend(value: dict) -> None:
     """
     config = load_config()
     config["claude_spend"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_hotkey_toggle(value: str) -> None:
+    """Persiste el atajo global de pausar/reanudar en config.json.
+
+    Args:
+        value: combinación en notación `QKeySequence` (ej. `"Ctrl+Shift+P"`).
+    """
+    config = load_config()
+    config["hotkey_toggle"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_hotkey_close(value: str) -> None:
+    """Persiste el atajo global de cerrar el overlay en config.json.
+
+    Args:
+        value: combinación en notación `QKeySequence` (ej. `"Ctrl+Shift+Q"`).
+    """
+    config = load_config()
+    config["hotkey_close"] = value
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
