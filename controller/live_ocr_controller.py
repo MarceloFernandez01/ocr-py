@@ -19,6 +19,7 @@ from controller.common import (
     processing_label,
     prompt_tesseract_path,
 )
+from controller.global_hotkeys import HOTKEY_CLOSE_ID, HOTKEY_TOGGLE_ID, GlobalHotkeyManager
 from model.claude_ocr_model import transcribe_image_claude
 from model.claude_usage_model import register_call
 from model.config_model import load_config
@@ -164,6 +165,10 @@ class LiveOcrController(QObject):
     y actualiza `LiveOcrView` con cada captura/resultado. Propaga un estado
     (Detenido/Transcribiendo/Analizando…/Pausado) a la vista y al overlay en
     cada transición, y sincroniza el botón de traducción de ambos widgets.
+    Instancia un `GlobalHotkeyManager` con vida igual a la de la app (persiste
+    aunque se navegue afuera de la vista) para pausar/reanudar y cerrar el
+    overlay con atajos globales de Windows, activos con o sin foco en la
+    aplicación.
     Expone `stop()` para que `MainWindow` lo invoque al navegar afuera de la vista.
     """
 
@@ -205,6 +210,12 @@ class LiveOcrController(QObject):
         self.view.activate_selection_clicked.connect(self.activate_selection)
         self.view.toggle_transcription_clicked.connect(self.toggle_transcription)
         self.view.translate_toggled.connect(self.on_translate_toggled)
+
+        self._hotkey_manager = GlobalHotkeyManager(self)
+        self._hotkey_manager.triggered.connect(self._on_hotkey_triggered)
+        config = load_config()
+        self._hotkey_manager.register(HOTKEY_TOGGLE_ID, config.get("hotkey_toggle", "Ctrl+Shift+P"))
+        self._hotkey_manager.register(HOTKEY_CLOSE_ID, config.get("hotkey_close", "Ctrl+Shift+Q"))
 
     def _use_claude_live(self) -> bool:
         """Indica si el ciclo en vivo debe usar Claude (motor Claude + interruptor de vivo encendido)."""
@@ -341,6 +352,18 @@ class LiveOcrController(QObject):
         self.view.disable_transcription_button()
         self.view.set_transcription_button_running(False)
         self._set_status("Detenido")
+
+    def _on_hotkey_triggered(self, hotkey_id: int) -> None:
+        """Reacciona a un atajo global: pausa/reanuda la transcripción (creando el
+        overlay y arrancando si no existía) o cierra el overlay, según `hotkey_id`.
+        """
+        if hotkey_id == HOTKEY_TOGGLE_ID:
+            if self._overlay is None:
+                self.activate_selection()
+            self.toggle_transcription()
+        elif hotkey_id == HOTKEY_CLOSE_ID:
+            if self._overlay is not None:
+                self._overlay.request_close()
 
     def _on_overlay_closed(self) -> None:
         """Detiene el polling al cerrar el overlay con la X, sin tocar el resto del estado."""

@@ -138,10 +138,16 @@ class ScreenOverlay(QWidget):
         """Actualiza el estado marcado del botón de traducción."""
         self._translate_button.setChecked(active)
 
-    def _on_close_clicked(self) -> None:
-        """Cierra el overlay y emite `closed`."""
+    def request_close(self) -> None:
+        """Cierra el overlay y emite `closed`. Llamado por el botón ✕ y por el
+        atajo global de cierre en `LiveOcrController`.
+        """
         self.close()
         self.closed.emit()
+
+    def _on_close_clicked(self) -> None:
+        """Cierra el overlay ante un click en el botón ✕."""
+        self.request_close()
 
     def resizeEvent(self, event) -> None:
         """Reposiciona los botones cuando cambia el tamaño del overlay."""
