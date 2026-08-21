@@ -163,7 +163,7 @@ QPushButton#overlayCloseButton {{
     border: none;
     border-radius: 2px;
     padding: 0px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: bold;
 }}
 
@@ -177,7 +177,7 @@ QPushButton#overlayToggleButton {{
     border: none;
     border-radius: 2px;
     padding: 0px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: bold;
 }}
 
@@ -187,6 +187,33 @@ QPushButton#overlayToggleButton:hover {{
 
 QPushButton#overlayToggleButton:disabled {{
     background-color: rgb(100, 100, 100);
+}}
+
+QPushButton#overlayTranslateButton {{
+    background-color: {ACCENT};
+    color: white;
+    border: none;
+    border-radius: 2px;
+    padding: 0px;
+    font-size: 14px;
+    font-weight: bold;
+}}
+
+QPushButton#overlayTranslateButton:hover:enabled {{
+    background-color: rgb(70, 150, 230);
+}}
+
+QPushButton#overlayTranslateButton:checked {{
+    background-color: rgb(30, 100, 170);
+}}
+
+QPushButton#overlayTranslateButton:disabled {{
+    background-color: rgb(100, 100, 100);
+}}
+
+QLabel#liveStatusLabel {{
+    color: {ACCENT};
+    font-weight: bold;
 }}
 
 QFrame#sidebarSeparator {{
@@ -465,7 +492,7 @@ QPushButton#overlayCloseButton {{
     border: none;
     border-radius: 2px;
     padding: 0px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: bold;
 }}
 
@@ -479,7 +506,7 @@ QPushButton#overlayToggleButton {{
     border: none;
     border-radius: 2px;
     padding: 0px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: bold;
 }}
 
@@ -489,6 +516,33 @@ QPushButton#overlayToggleButton:hover {{
 
 QPushButton#overlayToggleButton:disabled {{
     background-color: rgb(100, 100, 100);
+}}
+
+QPushButton#overlayTranslateButton {{
+    background-color: {ACCENT};
+    color: white;
+    border: none;
+    border-radius: 2px;
+    padding: 0px;
+    font-size: 14px;
+    font-weight: bold;
+}}
+
+QPushButton#overlayTranslateButton:hover:enabled {{
+    background-color: rgb(70, 150, 230);
+}}
+
+QPushButton#overlayTranslateButton:checked {{
+    background-color: rgb(30, 100, 170);
+}}
+
+QPushButton#overlayTranslateButton:disabled {{
+    background-color: rgb(100, 100, 100);
+}}
+
+QLabel#liveStatusLabel {{
+    color: {ACCENT};
+    font-weight: bold;
 }}
 
 QFrame#sidebarSeparator {{
