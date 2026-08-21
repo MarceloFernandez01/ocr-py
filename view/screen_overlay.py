@@ -9,17 +9,18 @@ from PySide6.QtWidgets import QPushButton, QWidget
 BORDER_WIDTH = 4
 HANDLE_SIZE = 16
 MIN_SIZE = 40
-CONTROL_BAR_HEIGHT = 28
+CONTROL_BAR_HEIGHT = 40
 DEFAULT_SIZE = (500, 300)
 ACCENT_COLOR = QColor(42, 130, 218)
 
 
 class ScreenOverlay(QWidget):
     """Ventana top-level frameless, siempre-encima, semitransparente, con borde de
-    acento y handles de redimensión en las esquinas. Arrastrable desde el área central.
+    acento. Las esquinas tienen una zona de agarre invisible para redimensionar
+    (señalizada solo con el cursor, sin dibujo) para que nunca aparezcan píxeles
+    de handles en la captura de pantalla. Arrastrable desde el área central.
     Los botones (▶/⏸ y ✕) viven en una barra de control por encima del área de
-    selección, fuera de `capture_geometry()`, para que nunca aparezcan en la captura
-    de pantalla y no haga falta ocultarlos durante el polling.
+    selección, fuera de `capture_geometry()`.
     No contiene lógica de negocio ni de captura: solo geometría/dibujo y señales.
     """
 
@@ -33,14 +34,15 @@ class ScreenOverlay(QWidget):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setMouseTracking(True)
 
         self._close_button = QPushButton("✕", self)
-        self._close_button.setFixedSize(20, 20)
+        self._close_button.setFixedSize(32, 32)
         self._close_button.setObjectName("overlayCloseButton")
         self._close_button.clicked.connect(self._on_close_clicked)
 
         self._toggle_button = QPushButton("▶", self)
-        self._toggle_button.setFixedSize(20, 20)
+        self._toggle_button.setFixedSize(32, 32)
         self._toggle_button.setObjectName("overlayToggleButton")
         self._toggle_button.clicked.connect(self.toggle_transcription_requested)
 
@@ -111,8 +113,11 @@ class ScreenOverlay(QWidget):
         self._position_buttons()
 
     def paintEvent(self, event: QPaintEvent) -> None:
-        """Dibuja el fondo semitransparente y el borde de acento con handles en las esquinas
-        del área de selección (la barra de control con los botones queda sin pintar).
+        """Dibuja el fondo semitransparente y el borde de acento del área de selección
+        (la barra de control con los botones queda sin pintar). Los handles de
+        redimensión de las esquinas no se dibujan: la zona de agarre sigue existiendo
+        para `_handle_at`, pero es invisible para que nunca aparezcan sus píxeles en
+        la captura enviada al OCR.
         El tinte semitransparente se limita al anillo del borde: el interior se pinta con
         alfa casi nulo (imperceptible) en vez de dejarlo sin pintar, porque en Windows una
         ventana `WA_TranslucentBackground` enruta los clicks a la ventana de abajo en los
@@ -134,11 +139,6 @@ class ScreenOverlay(QWidget):
         pen = QPen(ACCENT_COLOR, BORDER_WIDTH)
         painter.setPen(pen)
         painter.drawRect(selection.adjusted(BORDER_WIDTH // 2, BORDER_WIDTH // 2, -BORDER_WIDTH // 2, -BORDER_WIDTH // 2))
-
-        painter.setBrush(ACCENT_COLOR)
-        painter.setPen(Qt.NoPen)
-        for handle_rect in self._handle_rects().values():
-            painter.drawRect(handle_rect)
 
     def _handle_rects(self) -> dict[str, QRect]:
         """Devuelve el rectángulo de cada handle de redimensión, por esquina del área de selección."""
@@ -174,11 +174,21 @@ class ScreenOverlay(QWidget):
         self.interaction_started.emit()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        """Mueve o redimensiona el overlay mientras se arrastra el mouse."""
+        """Mueve o redimensiona el overlay mientras se arrastra el mouse; en reposo,
+        actualiza el cursor a flecha diagonal al pasar por encima de una zona de agarre.
+        """
         if self._resize_handle is not None:
             self._resize_to(event.globalPosition().toPoint())
         elif self._drag_offset is not None:
             self.move(event.globalPosition().toPoint() - self._drag_offset)
+        else:
+            handle = self._handle_at(event.pos())
+            if handle in ("top_left", "bottom_right"):
+                self.setCursor(Qt.SizeFDiagCursor)
+            elif handle in ("top_right", "bottom_left"):
+                self.setCursor(Qt.SizeBDiagCursor)
+            else:
+                self.setCursor(Qt.ArrowCursor)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Finaliza el arrastre o la redimensión y emite `geometry_changed`."""
