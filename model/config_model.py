@@ -12,6 +12,9 @@ else:
 
 CONFIG_PATH = os.path.join(_BASE_DIR, "config.json")
 
+KEYRING_SERVICE = "ocr-py"
+KEYRING_USERNAME = "anthropic_api_key"
+
 
 def load_config() -> dict:
     """Carga la configuración desde config.json.
@@ -39,6 +42,8 @@ def load_config() -> dict:
     )
     config.setdefault("hotkey_toggle", "Ctrl+Shift+P")
     config.setdefault("hotkey_close", "Ctrl+Shift+Q")
+    config.setdefault("translation_engine", "argos")
+    config.setdefault("plugins", {})
     return config
 
 
@@ -185,5 +190,47 @@ def save_hotkey_close(value: str) -> None:
     """
     config = load_config()
     config["hotkey_close"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_translation_engine(value: str) -> None:
+    """Persiste el plugin de traducción elegido en config.json.
+
+    Args:
+        value: id del plugin de traducción activo (ej. `"argos"`).
+    """
+    config = load_config()
+    config["translation_engine"] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_plugin_enabled(plugin_id: str, enabled: bool) -> None:
+    """Persiste si el plugin `plugin_id` está habilitado en config.json.
+
+    Args:
+        plugin_id: id del plugin, tal como figura en su `plugin.json`.
+        enabled: `True` para habilitarlo, `False` para deshabilitarlo.
+    """
+    config = load_config()
+    plugins = config.setdefault("plugins", {})
+    entry = plugins.setdefault(plugin_id, {"enabled": True, "settings": {}})
+    entry["enabled"] = enabled
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def save_plugin_settings(plugin_id: str, settings: dict) -> None:
+    """Persiste los ajustes propios del plugin `plugin_id` en config.json.
+
+    Args:
+        plugin_id: id del plugin, tal como figura en su `plugin.json`.
+        settings: diccionario de ajustes específico del plugin.
+    """
+    config = load_config()
+    plugins = config.setdefault("plugins", {})
+    entry = plugins.setdefault(plugin_id, {"enabled": True, "settings": {}})
+    entry["settings"] = settings
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)

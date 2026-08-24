@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING
 import keyring
 from PySide6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
 
-from controller.common import KEYRING_SERVICE, KEYRING_USERNAME
 from controller.global_hotkeys import HOTKEY_CLOSE_ID, HOTKEY_TOGGLE_ID
 from model.config_model import (
+    KEYRING_SERVICE,
+    KEYRING_USERNAME,
     load_config,
     save_claude_cooldown_seconds,
     save_claude_monthly_budget_usd,

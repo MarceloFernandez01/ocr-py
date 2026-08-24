@@ -12,8 +12,6 @@ from PySide6.QtWidgets import QMessageBox
 
 from controller.common import (
     COUNTER_INTERVAL_MS,
-    KEYRING_SERVICE,
-    KEYRING_USERNAME,
     LANGUAGE_MAP,
     format_claude_error,
     processing_label,
@@ -22,7 +20,7 @@ from controller.common import (
 from controller.global_hotkeys import HOTKEY_CLOSE_ID, HOTKEY_TOGGLE_ID, GlobalHotkeyManager
 from model.claude_ocr_model import transcribe_image_claude
 from model.claude_usage_model import register_call
-from model.config_model import load_config
+from model.config_model import KEYRING_SERVICE, KEYRING_USERNAME, load_config
 from model.image_diff import has_changed
 from model.ocr_model import transcribe_image_variants
 from model.tesseract_locator import resolve_tesseract_path

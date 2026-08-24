@@ -6,9 +6,8 @@ import keyring
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget
 
-from controller.common import KEYRING_SERVICE, KEYRING_USERNAME
 from model.claude_usage_model import load_spend
-from model.config_model import load_config
+from model.config_model import KEYRING_SERVICE, KEYRING_USERNAME, load_config
 from view.live_ocr_view import LiveOcrView
 from view.metro_style import get_stylesheet
 from view.ocr_view import OcrView
