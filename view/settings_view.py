@@ -17,9 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from model.config_model import load_config
-
-ENGINE_OPTIONS = ["Tesseract", "Claude Haiku"]
-TRANSLATION_ENGINE_OPTIONS = ["Argos Translate", "Claude Haiku (próximamente)"]
+from model.plugin_registry import list_providers
 
 ENGINE_COST_NOTICE_TEXT = (
     "Claude Haiku es un servicio pago de Anthropic: cada imagen transcripta "
@@ -109,19 +107,21 @@ class ThemeSwitch(QPushButton):
 
 class SettingsView(QWidget):
     """Vista de contenido con las opciones de configuración: toggle de tema
-    claro/oscuro, selector de motor OCR (Tesseract/Claude Haiku) con carga de
-    API key, control de confianza mínima por palabra para el filtro de ruido
-    de Tesseract, sensibilidad del filtro de cambio de texto y de píxeles en
-    OCR en vivo, interruptor y controles de Claude en OCR en vivo (cooldown,
-    presupuesto mensual), atajos globales de OCR en vivo (pausar/reanudar,
-    cerrar overlay) y placeholder deshabilitado de motor de traducción.
+    claro/oscuro, selector de motor OCR y de motor de traducción (ambos
+    alimentados desde `model/plugin_registry.list_providers`) con carga de
+    API key para Claude, control de confianza mínima por palabra para el
+    filtro de ruido de Tesseract, sensibilidad del filtro de cambio de texto
+    y de píxeles en OCR en vivo, interruptor y controles de Claude en OCR en
+    vivo (cooldown, presupuesto mensual), y atajos globales de OCR en vivo
+    (pausar/reanudar, cerrar overlay).
     No contiene lógica de negocio ni persiste ni llama al SDK
     `anthropic`/`keyring` directamente; emite señales para que el controller
     decida qué hacer.
     """
 
     theme_toggled = Signal(str)  # "dark" | "light"
-    engine_changed = Signal(str)  # "tesseract" | "claude"
+    engine_changed = Signal(str)  # id del plugin de OCR
+    translation_engine_changed = Signal(str)  # id del plugin de traducción
     api_key_submitted = Signal(str)
     min_word_confidence_changed = Signal(int)
     live_claude_toggled = Signal(bool)
@@ -149,7 +149,8 @@ class SettingsView(QWidget):
 
         engine_label = QLabel("Motor OCR")
         self.engine_combobox = QComboBox()
-        self.engine_combobox.addItems(ENGINE_OPTIONS)
+        for plugin in list_providers("ocr"):
+            self.engine_combobox.addItem(plugin.name, plugin.id)
         self.engine_combobox.setCurrentIndex(0)
 
         self.engine_cost_notice = QLabel(ENGINE_COST_NOTICE_TEXT)
@@ -288,9 +289,9 @@ class SettingsView(QWidget):
 
         translation_engine_label = QLabel("Motor de traducción")
         self.translation_engine_combobox = QComboBox()
-        self.translation_engine_combobox.addItems(TRANSLATION_ENGINE_OPTIONS)
+        for plugin in list_providers("translation"):
+            self.translation_engine_combobox.addItem(plugin.name, plugin.id)
         self.translation_engine_combobox.setCurrentIndex(0)
-        self.translation_engine_combobox.setEnabled(False)
 
         layout = QVBoxLayout(self)
         layout.addWidget(theme_label)
@@ -317,6 +318,7 @@ class SettingsView(QWidget):
 
         self.theme_switch.clicked.connect(self._on_theme_switch_clicked)
         self.engine_combobox.currentIndexChanged.connect(self._on_engine_combobox_changed)
+        self.translation_engine_combobox.currentIndexChanged.connect(self._on_translation_engine_combobox_changed)
         self.api_key_button.clicked.connect(self._on_api_key_button_clicked)
         self.min_word_confidence_slider.valueChanged.connect(self._on_min_word_confidence_changed)
         self.text_similarity_threshold_slider.valueChanged.connect(self._on_text_similarity_threshold_changed)
@@ -406,11 +408,15 @@ class SettingsView(QWidget):
 
     def _on_engine_combobox_changed(self, index: int) -> None:
         """Actualiza la visibilidad del aviso de costo y el campo de API key,
-        y emite `engine_changed` con el nuevo motor seleccionado.
+        y emite `engine_changed` con el id del plugin de OCR seleccionado.
         """
-        engine = "claude" if index == 1 else "tesseract"
+        engine = self.engine_combobox.itemData(index)
         self._update_engine_visibility(engine)
         self.engine_changed.emit(engine)
+
+    def _on_translation_engine_combobox_changed(self, index: int) -> None:
+        """Emite `translation_engine_changed` con el id del plugin de traducción seleccionado."""
+        self.translation_engine_changed.emit(self.translation_engine_combobox.itemData(index))
 
     def _update_engine_visibility(self, engine: str) -> None:
         """Muestra/oculta el aviso de costo, el campo de API key y los controles
@@ -425,14 +431,27 @@ class SettingsView(QWidget):
         self.claude_budget_container.setVisible(is_claude)
 
     def set_engine_silent(self, engine: str) -> None:
-        """Sincroniza el combobox de motor con `engine` sin emitir `engine_changed`
+        """Sincroniza el combobox de motor con el id `engine` sin emitir `engine_changed`
         (evita loops al llamarse desde el controller, ej. al revertir una selección).
         """
-        index = 1 if engine == "claude" else 0
+        index = self.engine_combobox.findData(engine)
+        if index == -1:
+            index = 0
         self.engine_combobox.blockSignals(True)
         self.engine_combobox.setCurrentIndex(index)
         self.engine_combobox.blockSignals(False)
         self._update_engine_visibility(engine)
+
+    def set_translation_engine_silent(self, plugin_id: str) -> None:
+        """Sincroniza el combobox de motor de traducción con el id `plugin_id`
+        sin emitir `translation_engine_changed`.
+        """
+        index = self.translation_engine_combobox.findData(plugin_id)
+        if index == -1:
+            index = 0
+        self.translation_engine_combobox.blockSignals(True)
+        self.translation_engine_combobox.setCurrentIndex(index)
+        self.translation_engine_combobox.blockSignals(False)
 
     def _on_api_key_button_clicked(self) -> None:
         """Si la key ya está guardada, habilita el campo para reemplazarla;

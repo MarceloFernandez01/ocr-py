@@ -22,6 +22,7 @@ from model.config_model import (
     save_pixel_change_sensitivity,
     save_text_similarity_threshold,
     save_theme,
+    save_translation_engine,
 )
 from model.hotkey_model import has_modifier
 from view.settings_view import SettingsView
@@ -34,7 +35,8 @@ class SettingsController:
     """Conecta SettingsView con el Model: al recibir `theme_toggled`, llama a
     save_theme() y le pide a MainWindow reaplicar el tema en caliente
     (paleta + stylesheet) sobre toda la ventana. También gestiona la
-    selección de motor OCR, la carga/reemplazo de la API key de Anthropic
+    selección de motor OCR y de motor de traducción (ambos alimentados desde
+    el registro de plugins), la carga/reemplazo de la API key de Anthropic
     en el keyring del sistema operativo, la persistencia del umbral de
     confianza mínima por palabra del filtro de ruido de Tesseract, y la
     persistencia de los controles de OCR en vivo (interruptor de Claude,
@@ -52,6 +54,7 @@ class SettingsController:
 
         self.settings_view.theme_toggled.connect(self._on_theme_toggled)
         self.settings_view.engine_changed.connect(self._on_engine_changed)
+        self.settings_view.translation_engine_changed.connect(save_translation_engine)
         self.settings_view.api_key_submitted.connect(self._on_api_key_submitted)
         self.settings_view.min_word_confidence_changed.connect(save_min_word_confidence)
         self.settings_view.live_claude_toggled.connect(save_live_claude_enabled)
@@ -65,11 +68,13 @@ class SettingsController:
         self._sync_initial_state()
 
     def _sync_initial_state(self) -> None:
-        """Refleja en la vista el motor persistido en config.json y si ya
-        hay una API key guardada en el keyring, sin emitir señales.
+        """Refleja en la vista el motor de OCR y de traducción persistidos en
+        config.json y si ya hay una API key guardada en el keyring, sin
+        emitir señales.
         """
-        engine = load_config().get("engine", "tesseract")
-        self.settings_view.set_engine_silent(engine)
+        config = load_config()
+        self.settings_view.set_engine_silent(config.get("engine", "tesseract"))
+        self.settings_view.set_translation_engine_silent(config.get("translation_engine", "argos"))
         self.settings_view.set_api_key_saved(self._get_saved_api_key() is not None)
 
     def _get_saved_api_key(self) -> str | None:

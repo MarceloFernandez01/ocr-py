@@ -13,19 +13,15 @@ from PySide6.QtWidgets import QMessageBox
 from controller.common import (
     COUNTER_INTERVAL_MS,
     LANGUAGE_MAP,
-    format_claude_error,
     processing_label,
     prompt_tesseract_path,
 )
 from controller.global_hotkeys import HOTKEY_CLOSE_ID, HOTKEY_TOGGLE_ID, GlobalHotkeyManager
-from model.claude_ocr_model import transcribe_image_claude
-from model.claude_usage_model import register_call
 from model.config_model import KEYRING_SERVICE, KEYRING_USERNAME, load_config
 from model.image_diff import has_changed
-from model.ocr_model import transcribe_image_variants
+from model.plugin_registry import PluginError, get_provider, run_ocr, run_translation
 from model.tesseract_locator import resolve_tesseract_path
 from model.text_diff import has_text_changed
-from model.translation_model import translate_text
 from view.live_ocr_view import LiveOcrView
 from view.screen_overlay import ScreenOverlay
 
@@ -43,73 +39,34 @@ class LiveTranscriptionSignals(QObject):
 
 
 class LiveTranscriptionRunnable(QRunnable):
-    """Corre `transcribe_image_variants` en un hilo del `QThreadPool` y emite el resultado por `LiveTranscriptionSignals`."""
-
-    def __init__(
-        self,
-        image: Image.Image,
-        language_code: str,
-        tesseract_path: str | None,
-        signals: LiveTranscriptionSignals,
-        min_word_confidence: int = 0,
-    ) -> None:
-        """Guarda los parámetros de la transcripción a ejecutar en `run()`."""
-        super().__init__()
-        self.image = image
-        self.language_code = language_code
-        self.tesseract_path = tesseract_path
-        self.min_word_confidence = min_word_confidence
-        self.signals = signals
-
-    def run(self) -> None:
-        """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado."""
-        try:
-            result = transcribe_image_variants(
-                self.image, self.language_code, self.tesseract_path, self.min_word_confidence
-            )
-        except Exception as error:
-            self.signals.failed.emit(str(error))
-        else:
-            self.signals.succeeded.emit(result)
-
-
-class ClaudeLiveTranscriptionSignals(QObject):
-    """Señales emitidas por `ClaudeLiveTranscriptionRunnable` al terminar (los `QRunnable` no tienen señales propias)."""
-
-    succeeded = Signal(str, int, int)  # texto, input_tokens, output_tokens
-    failed = Signal(str)
-
-
-class ClaudeLiveTranscriptionRunnable(QRunnable):
-    """Corre `transcribe_image_claude` en un hilo del `QThreadPool` y emite el
-    resultado por `ClaudeLiveTranscriptionSignals`. Mismo patrón que
-    `LiveTranscriptionRunnable`, con la firma de tres valores de
-    `transcribe_image_claude` (texto + tokens) y los errores del SDK
-    `anthropic` ya traducidos vía `format_claude_error`.
+    """Corre `run_ocr(plugin_id, ...)` en un hilo del `QThreadPool` y emite el
+    resultado por `LiveTranscriptionSignals`. Mismo runnable para el detector
+    de cambio de texto (`plugin_id="tesseract"`) y para la transcripción
+    final con Claude (`plugin_id="claude"`): no conoce motores concretos.
     """
 
     def __init__(
         self,
+        plugin_id: str,
         image: Image.Image,
         language_code: str,
-        api_key: str,
-        signals: ClaudeLiveTranscriptionSignals,
+        signals: LiveTranscriptionSignals,
     ) -> None:
         """Guarda los parámetros de la transcripción a ejecutar en `run()`."""
         super().__init__()
+        self.plugin_id = plugin_id
         self.image = image
         self.language_code = language_code
-        self.api_key = api_key
         self.signals = signals
 
     def run(self) -> None:
-        """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado."""
+        """Ejecuta la transcripción vía el registro de plugins y emite `succeeded` o `failed`."""
         try:
-            text, input_tokens, output_tokens = transcribe_image_claude(self.image, self.language_code, self.api_key)
-        except Exception as error:
-            self.signals.failed.emit(format_claude_error(error))
+            result = run_ocr(self.plugin_id, self.image, self.language_code)
+        except PluginError as error:
+            self.signals.failed.emit(str(error))
         else:
-            self.signals.succeeded.emit(text, input_tokens, output_tokens)
+            self.signals.succeeded.emit(result)
 
 
 class TranslationSignals(QObject):
@@ -120,14 +77,15 @@ class TranslationSignals(QObject):
 
 
 class TranslationRunnable(QRunnable):
-    """Corre `translate_text` en un hilo del `QThreadPool`. Mismo patrón que
-    `LiveTranscriptionRunnable`: `run()` llama al model y emite `translated(str)`
-    con el resultado o `error(str)` si `translate_text` levanta una excepción
-    (ej. sin internet en la primera descarga del modelo).
+    """Corre `run_translation(plugin_id, ...)` en un hilo del `QThreadPool`.
+    `run()` despacha vía el registro de plugins y emite `translated(str)` con
+    el resultado o `error(str)` si el plugin levanta una excepción (ej. sin
+    internet en la primera descarga del modelo de Argos).
     """
 
     def __init__(
         self,
+        plugin_id: str,
         text: str,
         source_lang: str,
         target_lang: str,
@@ -135,16 +93,17 @@ class TranslationRunnable(QRunnable):
     ) -> None:
         """Guarda los parámetros de la traducción a ejecutar en `run()`."""
         super().__init__()
+        self.plugin_id = plugin_id
         self.text = text
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.signals = signals
 
     def run(self) -> None:
-        """Ejecuta la traducción y emite `translated` o `error` según el resultado."""
+        """Ejecuta la traducción vía el registro de plugins y emite `translated` o `error`."""
         try:
-            result = translate_text(self.text, self.source_lang, self.target_lang)
-        except Exception as error:
+            result = run_translation(self.plugin_id, self.text, self.source_lang, self.target_lang)
+        except PluginError as error:
             self.signals.error.emit(str(error))
         else:
             self.signals.translated.emit(result)
@@ -155,11 +114,13 @@ class LiveOcrController(QObject):
     `activate_selection()`, arranca/detiene el `QTimer` de polling vía
     `toggle_transcription()` (`QScreen.grabWindow` sobre `capture_geometry()`, que ya
     excluye el borde y la barra de controles del overlay -> diff de píxeles vía
-    `model/image_diff.py` -> transcripción con Tesseract como detector de cambio
-    de texto (`model/text_diff.py`) -> si el texto cambió y el motor es Claude
-    con `live_claude_enabled`, dispara `transcribe_image_claude` en el
-    `QThreadPool` global (con cooldown configurable) y muestra solo su
-    resultado; en caso contrario, muestra el resultado de Tesseract),
+    `model/image_diff.py` -> transcripción con el plugin `"tesseract"` (vía
+    `model/plugin_registry.run_ocr`) como detector de cambio de texto
+    (`model/text_diff.py`) -> si el texto cambió y el motor es Claude con
+    `live_claude_enabled`, dispara el plugin `"claude"` en el `QThreadPool`
+    global (con cooldown configurable) y muestra solo su resultado; en caso
+    contrario, muestra el resultado del detector. Si el plugin `"tesseract"`
+    no está disponible, degrada al diff de píxeles como único disparador),
     y actualiza `LiveOcrView` con cada captura/resultado. Propaga un estado
     (Detenido/Transcribiendo/Analizando…/Pausado) a la vista y al overlay en
     cada transición, y sincroniza el botón de traducción de ambos widgets.
@@ -183,18 +144,17 @@ class LiveOcrController(QObject):
         self._timer: QTimer | None = None
         self._previous_capture: Image.Image | None = None
         self._worker: LiveTranscriptionSignals | None = None
-        self._tesseract_path: str | None = None
-        self._min_word_confidence: int = 0
         self._text_similarity_threshold: int = 90
         self._pixel_change_sensitivity: int = 2
         self._last_detector_text: str | None = None
         self._engine: str = "tesseract"
         self._live_claude_enabled: bool = False
         self._claude_cooldown_seconds: int = 10
-        self._api_key: str | None = None
+        self._translation_engine: str = "argos"
         self._last_claude_call: float | None = None
         self._pending_capture: Image.Image | None = None
-        self._claude_worker: ClaudeLiveTranscriptionSignals | None = None
+        self._claude_worker: LiveTranscriptionSignals | None = None
+        self._detector_unavailable_warned: bool = False
         self._transcription_start: float = 0.0
         self._translation_active: bool = False
         self._translation_worker: TranslationSignals | None = None
@@ -248,6 +208,7 @@ class LiveOcrController(QObject):
         self._last_claude_call = None
         self._pending_capture = None
         self._claude_worker = None
+        self._detector_unavailable_warned = False
         self._interacting = False
 
         self._overlay = ScreenOverlay()
@@ -285,27 +246,26 @@ class LiveOcrController(QObject):
                     return
 
             config = load_config()
-            self._tesseract_path = tesseract_path
-            self._min_word_confidence = config.get("min_word_confidence", 95)
             self._text_similarity_threshold = config.get("text_similarity_threshold", 90)
             self._pixel_change_sensitivity = config.get("pixel_change_sensitivity", 2)
             self._engine = config.get("engine", "tesseract")
             self._live_claude_enabled = config.get("live_claude_enabled", False)
             self._claude_cooldown_seconds = config.get("claude_cooldown_seconds", 10)
-            self._api_key = None
+            self._translation_engine = config.get("translation_engine", "argos")
 
             if self._use_claude_live():
-                self._api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
-                if not self._api_key:
+                api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
+                if not api_key:
                     QMessageBox.critical(
                         self.view,
                         "Falta la API key",
-                        "No hay una API key de Anthropic guardada. Configurala desde Configuración.",
+                        "No hay una API key de Anthropic guardada. Configúrela desde Configuración.",
                     )
                     return
 
             self._last_claude_call = None
             self._pending_capture = None
+            self._detector_unavailable_warned = False
 
             self.view.set_transcription_button_running(True)
             if self._overlay is not None:
@@ -348,6 +308,7 @@ class LiveOcrController(QObject):
         self._previous_capture = None
         self._last_detector_text = None
         self._last_claude_call = None
+        self._detector_unavailable_warned = False
         self._interacting = False
         self.view.enable_activate_button()
         self.view.disable_transcription_button()
@@ -396,6 +357,7 @@ class LiveOcrController(QObject):
         self._previous_capture = None
         self._last_detector_text = None
         self._last_claude_call = None
+        self._detector_unavailable_warned = False
         self._interacting = False
         self.view.enable_activate_button()
         self.view.disable_transcription_button()
@@ -460,7 +422,20 @@ class LiveOcrController(QObject):
         self.view.set_preview_image(scaled)
 
     def _start_transcription(self, image: Image.Image) -> None:
-        """Lanza la transcripción de `image` en el `QThreadPool` global, reemplazando el worker vigente."""
+        """Lanza la transcripción de `image` en el `QThreadPool` global, reemplazando el worker vigente.
+
+        El detector de cambio de texto de la spec 16 sigue siendo el plugin
+        `"tesseract"`, invocado explícitamente sin importar el motor
+        seleccionado. Si ese plugin no está disponible (instalación
+        corrupta), OCR en vivo degrada al diff de píxeles como único
+        disparador (avisa una vez por activación) en vez de cortar el ciclo.
+        """
+        if get_provider("ocr", "tesseract") is None:
+            self._warn_missing_detector_once()
+            if self._use_claude_live():
+                self._handle_claude_trigger(image)
+            return
+
         self._set_status("Analizando…")
         language_code = LANGUAGE_MAP[self.view.get_selected_language()]
 
@@ -470,11 +445,22 @@ class LiveOcrController(QObject):
         signals.succeeded.connect(self._on_transcription_succeeded)
         signals.failed.connect(self._on_transcription_failed)
         self._worker = signals
-        runnable = LiveTranscriptionRunnable(
-            image, language_code, self._tesseract_path, signals, self._min_word_confidence
-        )
+        runnable = LiveTranscriptionRunnable("tesseract", image, language_code, signals)
         QThreadPool.globalInstance().start(runnable)
         self._counter_timer.start(COUNTER_INTERVAL_MS)
+
+    def _warn_missing_detector_once(self) -> None:
+        """Avisa una única vez por activación que el detector de Tesseract no está disponible."""
+        if self._detector_unavailable_warned:
+            return
+        self._detector_unavailable_warned = True
+        QMessageBox.warning(
+            self.view,
+            "Detector de cambio de texto no disponible",
+            "El plugin de OCR «tesseract» no cargó (instalación posiblemente corrupta). "
+            "OCR en vivo sigue funcionando con el diff de píxeles como único disparador, "
+            "sin filtrar cambios de texto.",
+        )
 
     def _update_counter(self) -> None:
         """Actualiza el contador de segundos mientras la transcripción está en curso."""
@@ -541,8 +527,9 @@ class LiveOcrController(QObject):
             self._pending_capture = image
 
     def _dispatch_claude_call(self, image: Image.Image) -> None:
-        """Lanza `transcribe_image_claude` en el `QThreadPool` global y arranca
-        el contador de segundos mientras se espera la respuesta.
+        """Lanza el plugin `"claude"` en el `QThreadPool` global y arranca el
+        contador de segundos mientras se espera la respuesta. El registro de
+        gasto ya queda hecho dentro del plugin (`plugins_core/claude/`).
         """
         self._set_status("Analizando…")
         self._last_claude_call = time.monotonic()
@@ -550,17 +537,18 @@ class LiveOcrController(QObject):
 
         self._transcription_start = time.monotonic()
         self._update_counter()
-        signals = ClaudeLiveTranscriptionSignals(self)
+        signals = LiveTranscriptionSignals(self)
         signals.succeeded.connect(self._on_claude_succeeded)
         signals.failed.connect(self._on_claude_failed)
         self._claude_worker = signals
-        runnable = ClaudeLiveTranscriptionRunnable(image, language_code, self._api_key, signals)
+        runnable = LiveTranscriptionRunnable("claude", image, language_code, signals)
         QThreadPool.globalInstance().start(runnable)
         self._counter_timer.start(COUNTER_INTERVAL_MS)
 
-    def _on_claude_succeeded(self, text: str, input_tokens: int, output_tokens: int) -> None:
+    def _on_claude_succeeded(self, text: str) -> None:
         """Muestra el resultado de Claude si proviene del worker vigente; descarta
-        resultados obsoletos. Registra el gasto y refresca la barra de `MainWindow`.
+        resultados obsoletos. Refresca la barra de gasto de `MainWindow` (el
+        gasto ya quedó registrado dentro del plugin).
         """
         if self.sender() is not self._claude_worker:
             self.sender().deleteLater()
@@ -570,7 +558,6 @@ class LiveOcrController(QObject):
         self._claude_worker = None
         self._set_status("Transcribiendo")
 
-        register_call(input_tokens, output_tokens)
         if self.main_window is not None:
             self.main_window.refresh_spend_meter()
 
@@ -626,7 +613,7 @@ class LiveOcrController(QObject):
         signals.translated.connect(self._on_translation_finished)
         signals.error.connect(self._on_translation_error)
         self._translation_worker = signals
-        runnable = TranslationRunnable(text, source_lang, target_lang, signals)
+        runnable = TranslationRunnable(self._translation_engine, text, source_lang, target_lang, signals)
         QThreadPool.globalInstance().start(runnable)
 
     def _on_translation_finished(self, translated_text: str) -> None:
