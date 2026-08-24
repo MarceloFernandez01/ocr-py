@@ -13,14 +13,11 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 from controller.common import (
     COUNTER_INTERVAL_MS,
     LANGUAGE_MAP,
-    format_claude_error,
     processing_label,
     prompt_tesseract_path,
 )
-from model.claude_ocr_model import transcribe_image_claude
-from model.claude_usage_model import register_call
 from model.config_model import KEYRING_SERVICE, KEYRING_USERNAME, load_config
-from model.ocr_model import transcribe_cropped_image, transcribe_large_image
+from model.plugin_registry import PluginError, run_ocr
 from model.tesseract_locator import resolve_tesseract_path
 from view.ocr_view import OcrView
 
@@ -61,58 +58,28 @@ class TranscriptionRunnable(QRunnable):
 
     def __init__(
         self,
-        engine: str,
+        plugin_id: str,
+        image: Image.Image,
         language_code: str,
         signals: TranscriptionSignals,
-        image_path: str | None = None,
-        tesseract_path: str | None = None,
-        cropped_image: Image.Image | None = None,
-        claude_image: Image.Image | None = None,
-        api_key: str | None = None,
-        min_word_confidence: int = 0,
     ) -> None:
         """Guarda los parámetros de la transcripción a ejecutar en `run()`.
 
-        Si `engine` es `"claude"`, transcribe `claude_image` (imagen completa
-        o ya recortada) vía Claude Haiku con `api_key`. Si es `"tesseract"`
-        (default), transcribe `cropped_image` si no es None, o la imagen
-        completa en `image_path` (con tiling) en caso contrario, descartando
-        del resultado las palabras con confianza por debajo de `min_word_confidence`.
+        No conoce motores concretos: despacha siempre vía
+        `model/plugin_registry.run_ocr` con el `plugin_id` seleccionado.
         """
         super().__init__()
-        self.engine = engine
-        self.image_path = image_path
+        self.plugin_id = plugin_id
+        self.image = image
         self.language_code = language_code
-        self.tesseract_path = tesseract_path
-        self.cropped_image = cropped_image
-        self.claude_image = claude_image
-        self.api_key = api_key
-        self.min_word_confidence = min_word_confidence
         self.signals = signals
 
     def run(self) -> None:
-        """Ejecuta la transcripción y emite `succeeded` o `failed` según el resultado.
-
-        Con el motor Claude, además desempaqueta los tokens consumidos y
-        registra el gasto vía `register_call` antes de emitir el resultado.
-        """
+        """Ejecuta la transcripción vía el registro de plugins y emite `succeeded` o `failed`."""
         try:
-            if self.engine == "claude":
-                result, input_tokens, output_tokens = transcribe_image_claude(
-                    self.claude_image, self.language_code, self.api_key
-                )
-                register_call(input_tokens, output_tokens)
-            elif self.cropped_image is not None:
-                result = transcribe_cropped_image(
-                    self.cropped_image, self.language_code, self.tesseract_path, self.min_word_confidence
-                )
-            else:
-                result = transcribe_large_image(
-                    self.image_path, self.language_code, self.tesseract_path, self.min_word_confidence
-                )
-        except Exception as error:
-            message = format_claude_error(error) if self.engine == "claude" else str(error)
-            self.signals.failed.emit(message)
+            result = run_ocr(self.plugin_id, self.image, self.language_code)
+        except PluginError as error:
+            self.signals.failed.emit(str(error))
         else:
             self.signals.succeeded.emit(result)
 
@@ -143,7 +110,6 @@ class OcrController(QObject):
         self._preview_image_rect = QRectF()
         self._crop_box: tuple[int, int, int, int] | None = None
         self._crop_drag_start: QPointF | None = None
-        self._last_engine: str = "tesseract"
 
         self._zoom: float = 1.0
         self._zoom_center: tuple[float, float] | None = None
@@ -424,7 +390,13 @@ class OcrController(QObject):
         self.view.update_crop_button(has_crop=True)
 
     def on_transcribe(self) -> None:
-        """Transcribe la imagen cargada usando el idioma y el motor seleccionados."""
+        """Transcribe la imagen cargada usando el idioma y el motor seleccionados.
+
+        Conserva los chequeos interactivos por id de los dos motores nativos
+        (pedir la ruta de Tesseract, avisar si falta la API key de Anthropic):
+        ambos necesitan un diálogo de la vista antes de transcribir, algo que
+        el registro de plugins no puede resolver por sí solo en esta spec.
+        """
         if self.state.transcription_in_progress:
             return
 
@@ -438,60 +410,34 @@ class OcrController(QObject):
                 QMessageBox.critical(
                     self.view,
                     "Falta la API key",
-                    "No hay una API key de Anthropic guardada. Configurala desde Configuración.",
+                    "No hay una API key de Anthropic guardada. Configúrela desde Configuración.",
                 )
                 return
-            self._start_transcription(language_code, engine="claude", api_key=api_key)
-            return
-
-        tesseract_path = resolve_tesseract_path()
-        if tesseract_path is None:
-            tesseract_path = prompt_tesseract_path(self.view)
+        elif engine == "tesseract":
+            tesseract_path = resolve_tesseract_path()
             if tesseract_path is None:
-                return
+                tesseract_path = prompt_tesseract_path(self.view)
+                if tesseract_path is None:
+                    return
 
-        min_word_confidence = load_config().get("min_word_confidence", 95)
-        self._start_transcription(
-            language_code, engine="tesseract", tesseract_path=tesseract_path, min_word_confidence=min_word_confidence
-        )
+        self._start_transcription(language_code, engine)
 
-    def _start_transcription(
-        self,
-        language_code: str,
-        engine: str,
-        tesseract_path: str | None = None,
-        api_key: str | None = None,
-        min_word_confidence: int = 0,
-    ) -> None:
+    def _start_transcription(self, language_code: str, plugin_id: str) -> None:
         """Lanza la transcripción en el `QThreadPool` global y arranca el contador de segundos en vivo."""
         self.state.transcription_in_progress = True
-        self._last_engine = engine
         self.view.disable_transcribe_button()
         self._transcription_start = time.monotonic()
 
-        cropped_image = None
+        image = self._preview_source
         if self._crop_box is not None and self._preview_source is not None:
-            cropped_image = self._preview_source.crop(self._crop_box)
+            image = self._preview_source.crop(self._crop_box)
 
-        if engine == "claude":
-            claude_image = cropped_image if cropped_image is not None else self._preview_source
-            runnable = TranscriptionRunnable(
-                engine="claude",
-                language_code=language_code,
-                signals=self._worker_signals,
-                claude_image=claude_image,
-                api_key=api_key,
-            )
-        else:
-            runnable = TranscriptionRunnable(
-                engine="tesseract",
-                language_code=language_code,
-                signals=self._worker_signals,
-                image_path=self.state.image_path,
-                tesseract_path=tesseract_path,
-                cropped_image=cropped_image,
-                min_word_confidence=min_word_confidence,
-            )
+        runnable = TranscriptionRunnable(
+            plugin_id=plugin_id,
+            image=image,
+            language_code=language_code,
+            signals=self._worker_signals,
+        )
         QThreadPool.globalInstance().start(runnable)
 
         self._counter_timer = QTimer(self)
@@ -506,12 +452,13 @@ class OcrController(QObject):
     def _on_transcription_succeeded(self, result: str) -> None:
         """Muestra el resultado de la transcripción al terminar con éxito.
 
-        Con el motor Claude, refresca la barra de gasto de `MainWindow` (el
-        gasto ya quedó registrado en `TranscriptionRunnable.run()`).
+        Refresca la barra de gasto de `MainWindow` tras cada transcripción
+        exitosa, sin condicionar por motor: `refresh_spend_meter()` ya decide
+        por su cuenta si corresponde mostrarla.
         """
         self._counter_timer.stop()
         self.view.set_result_text(result)
-        if self._last_engine == "claude" and self.main_window is not None:
+        if self.main_window is not None:
             self.main_window.refresh_spend_meter()
         self._finish_transcription()
 
