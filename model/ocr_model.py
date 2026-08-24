@@ -101,15 +101,16 @@ def transcribe_image_variants(
     language_code: str,
     tesseract_path: str | None,
     min_word_confidence: int = 0,
+    variants: list[tuple[str, Image.Image]] | None = None,
 ) -> str:
     """Transcribe una `PIL.Image` ya en memoria (sin ruta de archivo ni tiling).
 
-    Genera las variantes preprocesadas de `image`, puntúa cada una por confianza
-    media de palabra (`conf >= 0`, texto no vacío) y reconstruye el texto de la
-    de mayor confianza a partir de `image_to_data`, descartando las palabras con
-    `conf < min_word_confidence`; empate o todas vacías → gana la variante
-    `original`. Misma lógica que usa internamente `transcribe_large_image`,
-    expuesta aquí para el flujo de captura de pantalla en vivo.
+    Puntúa cada variante por confianza media de palabra (`conf >= 0`, texto
+    no vacío) y reconstruye el texto de la de mayor confianza a partir de
+    `image_to_data`, descartando las palabras con `conf < min_word_confidence`;
+    empate o todas vacías → gana la variante `original`. Misma lógica que usa
+    internamente `transcribe_large_image`, expuesta aquí para el flujo de
+    captura de pantalla en vivo.
 
     Args:
         image: imagen ya cargada en memoria a transcribir.
@@ -117,12 +118,15 @@ def transcribe_image_variants(
         tesseract_path: ruta al ejecutable de Tesseract, o None si ya está en el PATH.
         min_word_confidence: confianza mínima (0-100) para conservar una palabra
             en el texto final; `0` no filtra nada (comportamiento sin regresión).
+        variants: lista de `(nombre, imagen)` a evaluar; con `None` se generan
+            internamente con `generate_variants(image)` (sin regresión).
     """
     if tesseract_path is not None:
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
     tesseract_config = "-c tessedit_char_blacklist=|"
-    variants = generate_variants(image)
+    if variants is None:
+        variants = generate_variants(image)
     best_variant = variants[0][1]  # original, por si todas las variantes empatan o quedan vacías
     best_data = None
     best_confidence = -1.0
