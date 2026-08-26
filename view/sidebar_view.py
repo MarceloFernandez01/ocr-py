@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 _LOGO_DIR = Path(__file__).resolve().parent.parent / "logo" / "OCR LOGO 2026"
 _LOGO_PATHS = {
@@ -20,14 +20,16 @@ class SidebarView(QWidget):
     """Menú lateral con logo, "OCR de imágenes", "OCR en vivo" y Configuración.
 
     No contiene lógica de negocio: emite `ocr_selected`/`live_ocr_selected`/
-    `settings_selected` al elegir una opción. El botón activo queda resaltado
-    vía su estado `checked`, de forma mutuamente excluyente con los demás. El
-    logo se selecciona según el tema activo vía `set_theme()`.
+    `settings_selected`/`plugins_selected` al elegir una opción. El botón
+    activo queda resaltado vía su estado `checked`, de forma mutuamente
+    excluyente con los demás. El logo se selecciona según el tema activo vía
+    `set_theme()`.
     """
 
     ocr_selected = Signal()
     live_ocr_selected = Signal()
     settings_selected = Signal()
+    plugins_selected = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea los widgets del menú lateral."""
@@ -57,19 +59,35 @@ class SidebarView(QWidget):
         self.settings_button.setCheckable(True)
         self.settings_button.setFixedWidth(48)
 
+        self.plugins_button = QPushButton("🧩")
+        self.plugins_button.setObjectName("settingsTile")
+        self.plugins_button.setCheckable(True)
+        self.plugins_button.setFixedSize(48, 48)
+
         layout = QVBoxLayout(self)
         layout.addWidget(self.logo_label)
         layout.addWidget(logo_separator)
         layout.addWidget(self.ocr_button)
         layout.addWidget(self.live_ocr_button)
         layout.addStretch()
-        layout.addWidget(self.settings_button, alignment=Qt.AlignLeft)
 
-        self._exclusive_buttons = (self.ocr_button, self.live_ocr_button, self.settings_button)
+        bottom_row = QHBoxLayout()
+        bottom_row.addWidget(self.settings_button)
+        bottom_row.addWidget(self.plugins_button)
+        bottom_row.addStretch()
+        layout.addLayout(bottom_row)
+
+        self._exclusive_buttons = (
+            self.ocr_button,
+            self.live_ocr_button,
+            self.settings_button,
+            self.plugins_button,
+        )
 
         self.ocr_button.clicked.connect(self._on_ocr_button_clicked)
         self.live_ocr_button.clicked.connect(self._on_live_ocr_button_clicked)
         self.settings_button.clicked.connect(self._on_settings_button_clicked)
+        self.plugins_button.clicked.connect(self._on_plugins_button_clicked)
 
     def _select_exclusive(self, selected: QPushButton) -> None:
         """Marca `selected` como activo y destilda los demás tiles excluyentes."""
@@ -90,6 +108,11 @@ class SidebarView(QWidget):
         """Resalta el engranaje y emite `settings_selected`."""
         self._select_exclusive(self.settings_button)
         self.settings_selected.emit()
+
+    def _on_plugins_button_clicked(self) -> None:
+        """Resalta el botón de plugins y emite `plugins_selected`."""
+        self._select_exclusive(self.plugins_button)
+        self.plugins_selected.emit()
 
     def set_theme(self, theme: str) -> None:
         """Actualiza el logo mostrado a la variante correspondiente a `theme`."""

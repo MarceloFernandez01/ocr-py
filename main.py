@@ -24,7 +24,7 @@ def main() -> None:
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(str(ICON_PATH)))
     window = MainWindow()
-    controller = OcrController(window.ocr_view, window)  # referencia viva: sin esto Python lo recolecta y desconecta las señales
+    window.ocr_controller = OcrController(window.ocr_view, window)  # referencia viva: sin esto Python lo recolecta y desconecta las señales
     window.show()
     window.raise_()
     window.activateWindow()

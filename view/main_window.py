@@ -11,6 +11,7 @@ from model.config_model import KEYRING_SERVICE, KEYRING_USERNAME, load_config
 from view.live_ocr_view import LiveOcrView
 from view.metro_style import get_stylesheet
 from view.ocr_view import OcrView
+from view.plugins_view import PluginsView
 from view.settings_view import SettingsView
 from view.sidebar_view import SidebarView
 from view.spend_meter_view import BAR_HEIGHT_PX, SpendMeterView
@@ -71,6 +72,7 @@ class MainWindow(QMainWindow):
         self.ocr_view = OcrView()
         self.live_ocr_view = LiveOcrView()
         self.settings_view = SettingsView()
+        self.plugins_view = PluginsView()
 
         separator = QFrame()
         separator.setObjectName("sidebarSeparator")
@@ -81,6 +83,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.ocr_view)
         self.content_stack.addWidget(self.live_ocr_view)
         self.content_stack.addWidget(self.settings_view)
+        self.content_stack.addWidget(self.plugins_view)
 
         content_row = QWidget()
         content_row.setFixedHeight(CONTENT_FIXED_SIZE[1])
@@ -105,6 +108,7 @@ class MainWindow(QMainWindow):
         self.sidebar_view.ocr_selected.connect(self._show_ocr_view)
         self.sidebar_view.live_ocr_selected.connect(self._show_live_ocr_view)
         self.sidebar_view.settings_selected.connect(self._show_settings_view)
+        self.sidebar_view.plugins_selected.connect(self._show_plugins_view)
 
         from controller.live_ocr_controller import LiveOcrController
         from controller.settings_controller import SettingsController
@@ -184,3 +188,7 @@ class MainWindow(QMainWindow):
         """Cambia el contenido de la ventana a la pantalla de Configuración, deteniendo OCR en vivo."""
         self.live_ocr_controller.stop()
         self.content_stack.setCurrentWidget(self.settings_view)
+
+    def _show_plugins_view(self) -> None:
+        """Cambia el contenido de la ventana a la pantalla de Plugins, sin detener OCR en vivo."""
+        self.content_stack.setCurrentWidget(self.plugins_view)
