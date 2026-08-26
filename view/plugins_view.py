@@ -9,26 +9,46 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
+from view.settings_view import ThemeSwitch
+
 if TYPE_CHECKING:
+    from model.plugin_manifest import SettingField
     from model.plugin_registry import LoadedPlugin
+
+
+def _parse_number(text: str) -> object:
+    """Convierte `text` a `int` o `float`; devuelve el texto sin tocar si no es numérico."""
+    try:
+        return int(text)
+    except ValueError:
+        pass
+    try:
+        return float(text.replace(",", "."))
+    except ValueError:
+        return text
 
 
 class PluginsView(QWidget):
     """Sin lógica de negocio: solo presentación y señales.
 
     `set_plugins` repuebla la lista completa (nombre, versión, descripción,
-    capacidades y estado, con badge "Esencial" para los tres plugins
-    nativos). El acordeón de ajustes y el interruptor de activar/desactivar
-    para plugins no esenciales se agregan en el paso siguiente de la spec.
+    capacidades, estado, badge "Esencial" para los tres plugins nativos,
+    interruptor de activar/desactivar para los demás, y un acordeón por
+    plugin con sus campos de `settings`). Los campos y el interruptor
+    persisten al cambiar de valor, sin botón "Guardar" explícito, igual que
+    el resto de `SettingsView`.
     """
 
     reload_requested = Signal()
+    plugin_enabled_toggled = Signal(str, bool)
+    plugin_setting_changed = Signal(str, str, object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea el banner de instalación corrupta, el botón de recarga y la lista."""
@@ -66,7 +86,14 @@ class PluginsView(QWidget):
         self._rows: dict[str, QWidget] = {}
 
     def set_plugins(self, loaded_plugins: list[LoadedPlugin]) -> None:
-        """Repuebla la lista completa a partir de `loaded_plugins`."""
+        """Repuebla la lista completa a partir de `loaded_plugins`.
+
+        El valor mostrado en cada campo del acordeón es `SettingField.default`
+        tal como venga en `loaded_plugins`: el controller es responsable de
+        pasar ahí el valor ya resuelto (`resolve_setting_value`), no el
+        default estático del manifiesto, para que el acordeón muestre el
+        valor vigente.
+        """
         while self._list_layout.count():
             item = self._list_layout.takeAt(0)
             widget = item.widget()
@@ -81,7 +108,8 @@ class PluginsView(QWidget):
 
     def _build_row(self, plugin: LoadedPlugin) -> QWidget:
         """Construye la fila de `plugin`: nombre, versión, badge esencial,
-        capacidades, descripción y estado (con el mensaje de error si aplica).
+        interruptor (si no es esencial), capacidades, descripción, estado
+        (con el mensaje de error si aplica) y el acordeón de ajustes.
         """
         row = QFrame()
         row.setObjectName("pluginRow")
@@ -99,7 +127,22 @@ class PluginsView(QWidget):
             header.addWidget(badge)
 
         header.addStretch()
+
+        if not plugin.essential:
+            enabled_switch = ThemeSwitch()
+            enabled_switch.set_checked_silent(plugin.enabled)
+            enabled_switch.toggled.connect(
+                lambda checked, plugin_id=plugin.id: self.plugin_enabled_toggled.emit(plugin_id, checked)
+            )
+            header.addWidget(enabled_switch)
+
         row_layout.addLayout(header)
+
+        if plugin.description:
+            description_label = QLabel(plugin.description)
+            description_label.setObjectName("pluginDescription")
+            description_label.setWordWrap(True)
+            row_layout.addWidget(description_label)
 
         capabilities_label = QLabel(", ".join(plugin.provides) if plugin.provides else "—")
         capabilities_label.setObjectName("pluginCapabilities")
@@ -110,7 +153,72 @@ class PluginsView(QWidget):
         status_label.setWordWrap(True)
         row_layout.addWidget(status_label)
 
+        if plugin.settings:
+            row_layout.addWidget(self._build_settings_accordion(plugin))
+
         return row
+
+    def _build_settings_accordion(self, plugin: LoadedPlugin) -> QWidget:
+        """Botón expandir/colapsar + contenedor con un campo por cada `SettingField` de `plugin`."""
+        toggle_button = QPushButton("Ajustes ▸")
+        toggle_button.setObjectName("pluginSettingsToggle")
+        toggle_button.setCheckable(True)
+        toggle_button.setChecked(False)
+
+        fields_container = QWidget()
+        fields_container.setObjectName("pluginSettingsAccordion")
+        fields_layout = QVBoxLayout(fields_container)
+        for setting_field in plugin.settings:
+            fields_layout.addWidget(self._build_settings_field(plugin.id, setting_field))
+        fields_container.setVisible(False)
+
+        def _on_toggled(checked: bool) -> None:
+            toggle_button.setText("Ajustes ▾" if checked else "Ajustes ▸")
+            fields_container.setVisible(checked)
+
+        toggle_button.toggled.connect(_on_toggled)
+
+        wrapper = QWidget()
+        wrapper_layout = QVBoxLayout(wrapper)
+        wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        wrapper_layout.addWidget(toggle_button)
+        wrapper_layout.addWidget(fields_container)
+        return wrapper
+
+    def _build_settings_field(self, plugin_id: str, setting_field: SettingField) -> QWidget:
+        """Fila con la etiqueta y el widget de entrada del campo `setting_field`, según su tipo."""
+        row = QHBoxLayout()
+        label = QLabel(setting_field.label)
+        row.addWidget(label)
+
+        if setting_field.type == "boolean":
+            switch = ThemeSwitch()
+            switch.set_checked_silent(bool(setting_field.default))
+            switch.toggled.connect(
+                lambda checked, pid=plugin_id, key=setting_field.key: self.plugin_setting_changed.emit(
+                    pid, key, checked
+                )
+            )
+            row.addWidget(switch)
+        else:
+            line_edit = QLineEdit()
+            if setting_field.type == "api_key":
+                line_edit.setEchoMode(QLineEdit.Password)
+            line_edit.setText("" if setting_field.default is None else str(setting_field.default))
+            field_type = setting_field.type
+
+            def _on_finished(pid=plugin_id, key=setting_field.key, edit=line_edit, ftype=field_type) -> None:
+                value = edit.text()
+                if ftype == "number":
+                    value = _parse_number(value)
+                self.plugin_setting_changed.emit(pid, key, value)
+
+            line_edit.editingFinished.connect(_on_finished)
+            row.addWidget(line_edit)
+
+        container = QWidget()
+        container.setLayout(row)
+        return container
 
     @staticmethod
     def _status_text(plugin: LoadedPlugin) -> str:

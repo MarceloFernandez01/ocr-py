@@ -59,6 +59,7 @@ class LoadedPlugin:
     enabled: bool
     essential: bool
     settings: list[SettingField] = field(default_factory=list)
+    description: str = ""
 
 
 class PluginError(Exception):
@@ -169,6 +170,7 @@ def _load_plugin_folder(base_dir: str, folder_name: str, essential: bool, plugin
             enabled=enabled,
             essential=essential,
             settings=list(manifest.settings),
+            description=manifest.description,
         )
     except Exception as exc:
         return LoadedPlugin(
