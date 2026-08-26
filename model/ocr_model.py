@@ -5,38 +5,7 @@ from PIL import Image
 from pytesseract import Output
 
 from model.image_preprocessing import generate_variants
-from model.image_tiling import prepare_tiles, prepare_tiles_from_image
-
-
-def transcribe_large_image(
-    image_path: str,
-    language_code: str,
-    tesseract_path: str | None,
-    min_word_confidence: int = 0,
-) -> str:
-    """Transcribe imágenes grandes o de relación de aspecto extrema partiéndolas en tiles.
-
-    Aplica `prepare_tiles` para obtener downscale y/o tiling según haga falta,
-    transcribe cada tile por separado con Tesseract y concatena los resultados
-    en orden, separados por salto de línea, sin deduplicar el texto solapado.
-
-    Args:
-        image_path: ruta a la imagen a transcribir.
-        language_code: código de idioma de Tesseract (`spa`, `eng` o `spa+eng`).
-        tesseract_path: ruta al ejecutable de Tesseract, o None si ya está en el PATH.
-        min_word_confidence: confianza mínima (0-100) para conservar una palabra
-            en el texto final; `0` no filtra nada.
-
-    Devuelve el texto reconocido.
-    """
-    if tesseract_path is not None:
-        pytesseract.pytesseract.tesseract_cmd = tesseract_path
-
-    tiles = prepare_tiles(image_path)
-    texts = [
-        transcribe_image_variants(tile, language_code, None, min_word_confidence) for tile in tiles
-    ]
-    return "\n".join(texts)
+from model.image_tiling import prepare_tiles_from_image
 
 
 def transcribe_cropped_image(
@@ -47,9 +16,9 @@ def transcribe_cropped_image(
 ) -> str:
     """Transcribe una `PIL.Image` ya recortada en memoria.
 
-    Aplica `prepare_tiles_from_image` + `transcribe_image_variants` por tile,
-    misma lógica que `transcribe_large_image` pero partiendo de una imagen ya
-    recortada en memoria en vez de leer y recortar desde `image_path`.
+    Aplica `prepare_tiles_from_image` para partirla en tiles si hace falta y
+    `transcribe_image_variants` por tile, concatenando los resultados en
+    orden, separados por salto de línea.
 
     Args:
         image: imagen ya recortada a transcribir.
@@ -101,15 +70,16 @@ def transcribe_image_variants(
     language_code: str,
     tesseract_path: str | None,
     min_word_confidence: int = 0,
+    variants: list[tuple[str, Image.Image]] | None = None,
 ) -> str:
     """Transcribe una `PIL.Image` ya en memoria (sin ruta de archivo ni tiling).
 
-    Genera las variantes preprocesadas de `image`, puntúa cada una por confianza
-    media de palabra (`conf >= 0`, texto no vacío) y reconstruye el texto de la
-    de mayor confianza a partir de `image_to_data`, descartando las palabras con
-    `conf < min_word_confidence`; empate o todas vacías → gana la variante
-    `original`. Misma lógica que usa internamente `transcribe_large_image`,
-    expuesta aquí para el flujo de captura de pantalla en vivo.
+    Puntúa cada variante por confianza media de palabra (`conf >= 0`, texto
+    no vacío) y reconstruye el texto de la de mayor confianza a partir de
+    `image_to_data`, descartando las palabras con `conf < min_word_confidence`;
+    empate o todas vacías → gana la variante `original`. La usan tanto
+    `plugins_core/tesseract/` (motor OCR de imágenes y en vivo, un tile a la
+    vez) como el detector de cambio de texto de OCR en vivo.
 
     Args:
         image: imagen ya cargada en memoria a transcribir.
@@ -117,12 +87,15 @@ def transcribe_image_variants(
         tesseract_path: ruta al ejecutable de Tesseract, o None si ya está en el PATH.
         min_word_confidence: confianza mínima (0-100) para conservar una palabra
             en el texto final; `0` no filtra nada (comportamiento sin regresión).
+        variants: lista de `(nombre, imagen)` a evaluar; con `None` se generan
+            internamente con `generate_variants(image)` (sin regresión).
     """
     if tesseract_path is not None:
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
     tesseract_config = "-c tessedit_char_blacklist=|"
-    variants = generate_variants(image)
+    if variants is None:
+        variants = generate_variants(image)
     best_variant = variants[0][1]  # original, por si todas las variantes empatan o quedan vacías
     best_data = None
     best_confidence = -1.0

@@ -1,0 +1,17 @@
+{
+  "id": "claude",
+  "name": "Claude Haiku 4.5",
+  "version": "1.0.0",
+  "api_version": 2,
+  "provides": ["ocr"],
+  "description": "Motor OCR vía la API de Anthropic (Claude Haiku 4.5).",
+  "settings": [
+    {
+      "key": "api_key",
+      "label": "API key de Anthropic",
+      "type": "api_key",
+      "required": true,
+      "default": ""
+    }
+  ]
+}

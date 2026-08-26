@@ -9,17 +9,19 @@ from PySide6.QtWidgets import QPushButton, QWidget
 BORDER_WIDTH = 4
 HANDLE_SIZE = 16
 MIN_SIZE = 40
-CONTROL_BAR_HEIGHT = 28
+CONTROL_BAR_HEIGHT = 40
 DEFAULT_SIZE = (500, 300)
 ACCENT_COLOR = QColor(42, 130, 218)
 
 
 class ScreenOverlay(QWidget):
     """Ventana top-level frameless, siempre-encima, semitransparente, con borde de
-    acento y handles de redimensión en las esquinas. Arrastrable desde el área central.
-    Los botones (▶/⏸ y ✕) viven en una barra de control por encima del área de
-    selección, fuera de `capture_geometry()`, para que nunca aparezcan en la captura
-    de pantalla y no haga falta ocultarlos durante el polling.
+    acento. Las esquinas tienen una zona de agarre invisible para redimensionar
+    (señalizada solo con el cursor, sin dibujo) para que nunca aparezcan píxeles
+    de handles en la captura de pantalla. Arrastrable desde el área central.
+    La barra de control por encima del área de selección, fuera de
+    `capture_geometry()`, tiene los botones (traducir, ▶/⏸ y ✕) a la derecha.
+    El indicador de estado vive solo en `LiveOcrView`.
     No contiene lógica de negocio ni de captura: solo geometría/dibujo y señales.
     """
 
@@ -27,22 +29,37 @@ class ScreenOverlay(QWidget):
     geometry_changed = Signal()
     interaction_started = Signal()
     toggle_transcription_requested = Signal()
+    translate_toggle_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Crea el overlay centrado en la pantalla con el tamaño default."""
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setMouseTracking(True)
 
         self._close_button = QPushButton("✕", self)
-        self._close_button.setFixedSize(20, 20)
+        self._close_button.setFixedSize(32, 32)
         self._close_button.setObjectName("overlayCloseButton")
         self._close_button.clicked.connect(self._on_close_clicked)
 
         self._toggle_button = QPushButton("▶", self)
-        self._toggle_button.setFixedSize(20, 20)
+        self._toggle_button.setFixedSize(32, 32)
         self._toggle_button.setObjectName("overlayToggleButton")
         self._toggle_button.clicked.connect(self.toggle_transcription_requested)
+
+        self._translate_button = QPushButton("🌐", self)
+        self._translate_button.setFixedSize(32, 32)
+        self._translate_button.setObjectName("overlayTranslateButton")
+        self._translate_button.setCheckable(True)
+        self._translate_button.setEnabled(False)
+        self._translate_button.setToolTip("Activar/desactivar traducción")
+        self._translate_button.clicked.connect(self.translate_toggle_requested)
+
+        self._toggle_hotkey_text = ""
+        self._close_hotkey_text = ""
+        self._update_toggle_tooltip()
+        self._close_button.setToolTip("Cerrar overlay")
 
         self._drag_offset: QPoint | None = None
         self._resize_handle: str | None = None
@@ -82,8 +99,8 @@ class ScreenOverlay(QWidget):
         self._position_buttons()
 
     def _position_buttons(self) -> None:
-        """Ubica el botón de pausa/reanudar y el de cierre dentro de la barra de control,
-        alineados verticalmente al centro de esta.
+        """Ubica los botones de traducción/pausa/cierre a la derecha de la barra
+        de control, alineados al centro.
         """
         button_y = (CONTROL_BAR_HEIGHT - self._close_button.height()) // 2
         self._close_button.move(self.width() - self._close_button.width() - BORDER_WIDTH, button_y)
@@ -91,19 +108,60 @@ class ScreenOverlay(QWidget):
             self._close_button.x() - self._toggle_button.width() - 4,
             button_y,
         )
+        self._translate_button.move(
+            self._toggle_button.x() - self._translate_button.width() - 4,
+            button_y,
+        )
 
     def set_running(self, running: bool) -> None:
         """Actualiza el ícono del botón de pausa/reanudar según si la transcripción corre."""
         self._toggle_button.setText("⏸" if running else "▶")
+        self._update_toggle_tooltip()
+
+    def set_hotkey_labels(self, toggle_text: str, close_text: str) -> None:
+        """Recalcula los tooltips de pausar/reanudar y cerrar con el atajo vigente.
+
+        Args:
+            toggle_text: combinación configurada para pausar/reanudar (ej. "Ctrl+Shift+P").
+            close_text: combinación configurada para cerrar el overlay.
+        """
+        self._toggle_hotkey_text = toggle_text
+        self._close_hotkey_text = close_text
+        self._update_toggle_tooltip()
+        self._close_button.setToolTip(
+            f"Cerrar overlay ({close_text})" if close_text else "Cerrar overlay"
+        )
+
+    def _update_toggle_tooltip(self) -> None:
+        """Recalcula el tooltip del botón de pausa/reanudar según su ícono y el atajo vigente."""
+        action = "Pausar transcripción" if self._toggle_button.text() == "⏸" else "Iniciar transcripción"
+        if self._toggle_hotkey_text:
+            self._toggle_button.setToolTip(f"{action} ({self._toggle_hotkey_text})")
+        else:
+            self._toggle_button.setToolTip(action)
 
     def set_toggle_enabled(self, enabled: bool) -> None:
         """Habilita o deshabilita el botón de pausa/reanudar."""
         self._toggle_button.setEnabled(enabled)
 
-    def _on_close_clicked(self) -> None:
-        """Cierra el overlay y emite `closed`."""
+    def set_translate_enabled(self, enabled: bool) -> None:
+        """Habilita o deshabilita el botón de traducción."""
+        self._translate_button.setEnabled(enabled)
+
+    def set_translate_active(self, active: bool) -> None:
+        """Actualiza el estado marcado del botón de traducción."""
+        self._translate_button.setChecked(active)
+
+    def request_close(self) -> None:
+        """Cierra el overlay y emite `closed`. Llamado por el botón ✕ y por el
+        atajo global de cierre en `LiveOcrController`.
+        """
         self.close()
         self.closed.emit()
+
+    def _on_close_clicked(self) -> None:
+        """Cierra el overlay ante un click en el botón ✕."""
+        self.request_close()
 
     def resizeEvent(self, event) -> None:
         """Reposiciona los botones cuando cambia el tamaño del overlay."""
@@ -111,8 +169,11 @@ class ScreenOverlay(QWidget):
         self._position_buttons()
 
     def paintEvent(self, event: QPaintEvent) -> None:
-        """Dibuja el fondo semitransparente y el borde de acento con handles en las esquinas
-        del área de selección (la barra de control con los botones queda sin pintar).
+        """Dibuja el fondo semitransparente y el borde de acento del área de selección
+        (la barra de control con los botones queda sin pintar). Los handles de
+        redimensión de las esquinas no se dibujan: la zona de agarre sigue existiendo
+        para `_handle_at`, pero es invisible para que nunca aparezcan sus píxeles en
+        la captura enviada al OCR.
         El tinte semitransparente se limita al anillo del borde: el interior se pinta con
         alfa casi nulo (imperceptible) en vez de dejarlo sin pintar, porque en Windows una
         ventana `WA_TranslucentBackground` enruta los clicks a la ventana de abajo en los
@@ -134,11 +195,6 @@ class ScreenOverlay(QWidget):
         pen = QPen(ACCENT_COLOR, BORDER_WIDTH)
         painter.setPen(pen)
         painter.drawRect(selection.adjusted(BORDER_WIDTH // 2, BORDER_WIDTH // 2, -BORDER_WIDTH // 2, -BORDER_WIDTH // 2))
-
-        painter.setBrush(ACCENT_COLOR)
-        painter.setPen(Qt.NoPen)
-        for handle_rect in self._handle_rects().values():
-            painter.drawRect(handle_rect)
 
     def _handle_rects(self) -> dict[str, QRect]:
         """Devuelve el rectángulo de cada handle de redimensión, por esquina del área de selección."""
@@ -174,11 +230,21 @@ class ScreenOverlay(QWidget):
         self.interaction_started.emit()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        """Mueve o redimensiona el overlay mientras se arrastra el mouse."""
+        """Mueve o redimensiona el overlay mientras se arrastra el mouse; en reposo,
+        actualiza el cursor a flecha diagonal al pasar por encima de una zona de agarre.
+        """
         if self._resize_handle is not None:
             self._resize_to(event.globalPosition().toPoint())
         elif self._drag_offset is not None:
             self.move(event.globalPosition().toPoint() - self._drag_offset)
+        else:
+            handle = self._handle_at(event.pos())
+            if handle in ("top_left", "bottom_right"):
+                self.setCursor(Qt.SizeFDiagCursor)
+            elif handle in ("top_right", "bottom_left"):
+                self.setCursor(Qt.SizeBDiagCursor)
+            else:
+                self.setCursor(Qt.ArrowCursor)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Finaliza el arrastre o la redimensión y emite `geometry_changed`."""

@@ -163,7 +163,7 @@ QPushButton#overlayCloseButton {{
     border: none;
     border-radius: 2px;
     padding: 0px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: bold;
 }}
 
@@ -177,7 +177,7 @@ QPushButton#overlayToggleButton {{
     border: none;
     border-radius: 2px;
     padding: 0px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: bold;
 }}
 
@@ -187,6 +187,38 @@ QPushButton#overlayToggleButton:hover {{
 
 QPushButton#overlayToggleButton:disabled {{
     background-color: rgb(100, 100, 100);
+}}
+
+QPushButton#overlayTranslateButton {{
+    background-color: {ACCENT};
+    color: white;
+    border: none;
+    border-radius: 2px;
+    padding: 0px;
+    font-size: 14px;
+    font-weight: bold;
+}}
+
+QPushButton#overlayTranslateButton:hover:enabled {{
+    background-color: rgb(70, 150, 230);
+}}
+
+QPushButton#overlayTranslateButton:checked {{
+    background-color: rgb(30, 100, 170);
+}}
+
+QPushButton#overlayTranslateButton:disabled {{
+    background-color: rgb(100, 100, 100);
+}}
+
+QLabel#liveStatusLabel {{
+    color: {ACCENT};
+    font-weight: bold;
+}}
+
+QLabel#hotkeyWarningLabel {{
+    color: rgb(200, 60, 60);
+    font-weight: bold;
 }}
 
 QFrame#sidebarSeparator {{
@@ -285,6 +317,114 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
 
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
     background: none;
+}}
+
+QWidget#spendMeter {{
+    background-color: rgb(45, 45, 45);
+    border-top: 1px solid rgb(80, 80, 80);
+}}
+
+QProgressBar#spendMeterBar {{
+    background-color: rgb(35, 35, 35);
+    border: none;
+    border-radius: 3px;
+    max-height: 6px;
+}}
+
+QProgressBar#spendMeterBar::chunk {{
+    background-color: {ACCENT};
+    border-radius: 3px;
+}}
+
+QProgressBar#spendMeterBar[overBudget="true"]::chunk {{
+    background-color: rgb(200, 60, 60);
+}}
+
+QLabel#spendMeterLabel {{
+    font-size: 12px;
+    color: rgb(200, 200, 200);
+}}
+
+QScrollArea#pluginsScrollArea {{
+    background-color: transparent;
+    border: none;
+}}
+
+QLabel#pluginsCorruptBanner {{
+    background-color: rgba(200, 60, 60, 50);
+    border: 1px solid rgb(200, 60, 60);
+    border-radius: 4px;
+    padding: 10px;
+    color: rgb(255, 210, 210);
+    font-weight: bold;
+}}
+
+QFrame#pluginRow {{
+    background-color: rgb(45, 45, 45);
+    border: 1px solid rgb(80, 80, 80);
+    border-radius: 4px;
+    padding: 10px;
+}}
+
+QLabel#pluginName {{
+    font-size: 15px;
+    font-weight: 600;
+}}
+
+QLabel#pluginEssentialBadge {{
+    background-color: {ACCENT};
+    color: white;
+    border-radius: 8px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: bold;
+}}
+
+QLabel#pluginDescription {{
+    font-size: 12px;
+    color: rgb(190, 190, 190);
+}}
+
+QLabel#pluginCapabilities {{
+    font-size: 11px;
+    color: rgb(150, 150, 150);
+}}
+
+QLabel#pluginStatus {{
+    font-size: 12px;
+    font-weight: bold;
+}}
+
+QLabel#pluginStatus[state="active"] {{
+    color: rgb(120, 200, 120);
+}}
+
+QLabel#pluginStatus[state="disabled"] {{
+    color: rgb(180, 180, 180);
+}}
+
+QLabel#pluginStatus[state="error"] {{
+    color: rgb(230, 100, 100);
+}}
+
+QPushButton#pluginSettingsToggle {{
+    background-color: transparent;
+    color: {ACCENT};
+    text-align: left;
+    padding: 4px 0px;
+    font-size: 12px;
+    font-weight: bold;
+}}
+
+QPushButton#pluginSettingsToggle:hover {{
+    color: rgb(120, 180, 240);
+}}
+
+QWidget#pluginSettingsAccordion {{
+    background-color: rgb(40, 40, 40);
+    border: 1px solid rgb(70, 70, 70);
+    border-radius: 4px;
+    padding: 8px;
 }}
 """
 
@@ -439,7 +579,7 @@ QPushButton#overlayCloseButton {{
     border: none;
     border-radius: 2px;
     padding: 0px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: bold;
 }}
 
@@ -453,7 +593,7 @@ QPushButton#overlayToggleButton {{
     border: none;
     border-radius: 2px;
     padding: 0px;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: bold;
 }}
 
@@ -463,6 +603,38 @@ QPushButton#overlayToggleButton:hover {{
 
 QPushButton#overlayToggleButton:disabled {{
     background-color: rgb(100, 100, 100);
+}}
+
+QPushButton#overlayTranslateButton {{
+    background-color: {ACCENT};
+    color: white;
+    border: none;
+    border-radius: 2px;
+    padding: 0px;
+    font-size: 14px;
+    font-weight: bold;
+}}
+
+QPushButton#overlayTranslateButton:hover:enabled {{
+    background-color: rgb(70, 150, 230);
+}}
+
+QPushButton#overlayTranslateButton:checked {{
+    background-color: rgb(30, 100, 170);
+}}
+
+QPushButton#overlayTranslateButton:disabled {{
+    background-color: rgb(100, 100, 100);
+}}
+
+QLabel#liveStatusLabel {{
+    color: {ACCENT};
+    font-weight: bold;
+}}
+
+QLabel#hotkeyWarningLabel {{
+    color: rgb(200, 60, 60);
+    font-weight: bold;
 }}
 
 QFrame#sidebarSeparator {{
@@ -561,6 +733,115 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
 
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
     background: none;
+}}
+
+QWidget#spendMeter {{
+    background-color: rgb(230, 230, 230);
+    border-top: 1px solid rgb(200, 200, 200);
+}}
+
+QProgressBar#spendMeterBar {{
+    background-color: rgb(255, 255, 255);
+    border: 1px solid rgb(200, 200, 200);
+    border-radius: 3px;
+    max-height: 6px;
+}}
+
+QProgressBar#spendMeterBar::chunk {{
+    background-color: {ACCENT};
+    border-radius: 3px;
+}}
+
+QProgressBar#spendMeterBar[overBudget="true"]::chunk {{
+    background-color: rgb(200, 60, 60);
+}}
+
+QLabel#spendMeterLabel {{
+    font-size: 12px;
+    color: rgb(80, 80, 80);
+}}
+
+QScrollArea#pluginsScrollArea {{
+    background-color: transparent;
+    border: none;
+}}
+
+QLabel#pluginsCorruptBanner {{
+    background-color: rgba(200, 60, 60, 30);
+    border: 1px solid rgb(200, 60, 60);
+    border-radius: 4px;
+    padding: 10px;
+    color: rgb(150, 20, 20);
+    font-weight: bold;
+}}
+
+QFrame#pluginRow {{
+    background-color: rgb(255, 255, 255);
+    border: 1px solid rgb(200, 200, 200);
+    border-radius: 4px;
+    padding: 10px;
+}}
+
+QLabel#pluginName {{
+    font-size: 15px;
+    font-weight: 600;
+    color: rgb(20, 20, 20);
+}}
+
+QLabel#pluginEssentialBadge {{
+    background-color: {ACCENT};
+    color: white;
+    border-radius: 8px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: bold;
+}}
+
+QLabel#pluginDescription {{
+    font-size: 12px;
+    color: rgb(90, 90, 90);
+}}
+
+QLabel#pluginCapabilities {{
+    font-size: 11px;
+    color: rgb(120, 120, 120);
+}}
+
+QLabel#pluginStatus {{
+    font-size: 12px;
+    font-weight: bold;
+}}
+
+QLabel#pluginStatus[state="active"] {{
+    color: rgb(30, 140, 30);
+}}
+
+QLabel#pluginStatus[state="disabled"] {{
+    color: rgb(110, 110, 110);
+}}
+
+QLabel#pluginStatus[state="error"] {{
+    color: rgb(190, 40, 40);
+}}
+
+QPushButton#pluginSettingsToggle {{
+    background-color: transparent;
+    color: {ACCENT};
+    text-align: left;
+    padding: 4px 0px;
+    font-size: 12px;
+    font-weight: bold;
+}}
+
+QPushButton#pluginSettingsToggle:hover {{
+    color: rgb(20, 90, 160);
+}}
+
+QWidget#pluginSettingsAccordion {{
+    background-color: rgb(248, 248, 248);
+    border: 1px solid rgb(210, 210, 210);
+    border-radius: 4px;
+    padding: 8px;
 }}
 """
 

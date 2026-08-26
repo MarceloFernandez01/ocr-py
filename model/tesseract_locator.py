@@ -12,8 +12,8 @@ def resolve_tesseract_path() -> str | None:
 
     Si la app corre empaquetada (PyInstaller), usa el Tesseract embebido
     junto al ejecutable. Si no, intenta encontrarlo en el PATH del sistema;
-    si no está, revisa la ruta guardada en config.json (descartándola si
-    ya no existe en disco).
+    si no está, revisa la ruta guardada en `plugins.tesseract.settings.tesseract_path`
+    de config.json (descartándola si ya no existe en disco).
 
     Devuelve la ruta encontrada, o None si no se pudo resolver.
     """
@@ -26,7 +26,7 @@ def resolve_tesseract_path() -> str | None:
         return path_from_system
 
     config = load_config()
-    saved_path = config.get("tesseract_path")
+    saved_path = config.get("plugins", {}).get("tesseract", {}).get("settings", {}).get("tesseract_path")
     if saved_path and os.path.exists(saved_path):
         return saved_path
 

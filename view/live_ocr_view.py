@@ -21,9 +21,9 @@ TRANSLATION_LANGUAGE_OPTIONS = ["Español", "Inglés"]
 
 class LiveOcrView(QWidget):
     """Vista de contenido de OCR en vivo: selector de idioma, botón "Activar
-    selección", miniatura de la última captura y resultado de texto (solo
-    lectura, se actualiza sola). No contiene lógica de negocio ni de captura
-    de pantalla: solo layout y setters/getters simples.
+    selección", indicador de estado, miniatura de la última captura y resultado
+    de texto (solo lectura, se actualiza sola). No contiene lógica de negocio
+    ni de captura de pantalla: solo layout y setters/getters simples.
     """
 
     activate_selection_clicked = Signal()
@@ -61,10 +61,19 @@ class LiveOcrView(QWidget):
         transcription_layout.addWidget(transcription_spacer)
         transcription_layout.addWidget(self.transcription_button)
 
+        status_spacer = QLabel("")
+        status_spacer.setObjectName("fieldLabel")
+        self.status_label = QLabel("Detenido")
+        self.status_label.setObjectName("liveStatusLabel")
+        status_layout = QVBoxLayout()
+        status_layout.addWidget(status_spacer)
+        status_layout.addWidget(self.status_label)
+
         toolbar = QHBoxLayout()
         toolbar.addLayout(language_layout)
         toolbar.addLayout(activate_layout)
         toolbar.addLayout(transcription_layout)
+        toolbar.addLayout(status_layout)
         toolbar.addStretch()
 
         self.source_language_label = QLabel("Traducir desde")
@@ -177,3 +186,11 @@ class LiveOcrView(QWidget):
     def set_translated_text(self, text: str) -> None:
         """Reemplaza el contenido del área de traducción con `text`."""
         self.translated_text_edit.setPlainText(text)
+
+    def set_status(self, status: str) -> None:
+        """Actualiza el texto del indicador de estado de OCR en vivo.
+
+        Args:
+            status: uno de "Detenido", "Transcribiendo", "Analizando…" o "Pausado".
+        """
+        self.status_label.setText(status)
