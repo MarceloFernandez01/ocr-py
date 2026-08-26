@@ -69,6 +69,7 @@ class PluginsView(QWidget):
 
         self._list_layout = QVBoxLayout()
         self._list_layout.setAlignment(Qt.AlignTop)
+        self._list_layout.setSpacing(10)
 
         list_container = QWidget()
         list_container.setLayout(self._list_layout)
@@ -150,6 +151,7 @@ class PluginsView(QWidget):
 
         status_label = QLabel(self._status_text(plugin))
         status_label.setObjectName("pluginStatus")
+        status_label.setProperty("state", self._status_state(plugin))
         status_label.setWordWrap(True)
         row_layout.addWidget(status_label)
 
@@ -226,6 +228,15 @@ class PluginsView(QWidget):
         if plugin.error is not None:
             return f"Con error: {plugin.error}"
         return "Activo" if plugin.enabled else "Deshabilitado"
+
+    @staticmethod
+    def _status_state(plugin: LoadedPlugin) -> str:
+        """Propiedad Qt dinámica (`state`) que `metro_style.py` usa para colorear
+        `pluginStatus` según corresponda: "error", "active" o "disabled".
+        """
+        if plugin.error is not None:
+            return "error"
+        return "active" if plugin.enabled else "disabled"
 
     def set_corrupt_banner(self, missing_ids: list[str]) -> None:
         """Muestra u oculta el banner de instalación corrupta según `missing_ids`."""

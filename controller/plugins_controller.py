@@ -30,7 +30,7 @@ class PluginsController:
     en vivo (`main_window.live_ocr_controller._status != "Detenido"`) en curso.
     """
 
-    def __init__(self, view: PluginsView, main_window: "MainWindow") -> None:
+    def __init__(self, view: PluginsView, main_window: MainWindow) -> None:
         """Conecta las señales de `view` y la señal `plugins_selected` del sidebar."""
         self.view = view
         self.main_window = main_window
@@ -60,11 +60,9 @@ class PluginsController:
     def _can_reload(self) -> bool:
         """Indica si "Recargar plugins" debe estar habilitado: sin transcripciones en curso."""
         ocr_controller = getattr(self.main_window, "ocr_controller", None)
-        if ocr_controller is not None and ocr_controller.state.transcription_in_progress:
-            return False
-        if self.main_window.live_ocr_controller._status != "Detenido":
-            return False
-        return True
+        transcribing = ocr_controller is not None and ocr_controller.state.transcription_in_progress
+        live_running = self.main_window.live_ocr_controller._status != "Detenido"
+        return not transcribing and not live_running
 
     def _on_reload_requested(self) -> None:
         """Recarga el registro y repuebla la vista y los combos de `SettingsView`.
