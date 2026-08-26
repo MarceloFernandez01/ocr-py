@@ -8,10 +8,10 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout, QWidget
 
-_LOGO_DIR = Path(__file__).resolve().parent.parent / "logo"
+_LOGO_DIR = Path(__file__).resolve().parent.parent / "logo" / "OCR LOGO 2026"
 _LOGO_PATHS = {
-    "dark": _LOGO_DIR / "logo_ocr_v6_150x100_dark.png",
-    "light": _LOGO_DIR / "logo_ocr_v6_150x100_light.png",
+    "dark": _LOGO_DIR / "ocrpy-logo-oscuro.png",
+    "light": _LOGO_DIR / "ocrpy-logo-claro.png",
 }
 _LOGO_WIDTH = 168
 

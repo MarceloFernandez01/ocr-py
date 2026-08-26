@@ -2,7 +2,16 @@
   "id": "tesseract",
   "name": "Tesseract OCR",
   "version": "1.0.0",
-  "api_version": 1,
+  "api_version": 2,
   "provides": ["ocr"],
-  "description": "Motor OCR local vía pytesseract."
+  "description": "Motor OCR local vía pytesseract.",
+  "settings": [
+    {
+      "key": "tesseract_path",
+      "label": "Ruta del ejecutable de Tesseract",
+      "type": "text",
+      "required": true,
+      "default": ""
+    }
+  ]
 }

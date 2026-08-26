@@ -77,9 +77,9 @@ def transcribe_image_variants(
     Puntúa cada variante por confianza media de palabra (`conf >= 0`, texto
     no vacío) y reconstruye el texto de la de mayor confianza a partir de
     `image_to_data`, descartando las palabras con `conf < min_word_confidence`;
-    empate o todas vacías → gana la variante `original`. Misma lógica que usa
-    internamente `transcribe_large_image`, expuesta aquí para el flujo de
-    captura de pantalla en vivo.
+    empate o todas vacías → gana la variante `original`. La usan tanto
+    `plugins_core/tesseract/` (motor OCR de imágenes y en vivo, un tile a la
+    vez) como el detector de cambio de texto de OCR en vivo.
 
     Args:
         image: imagen ya cargada en memoria a transcribir.
