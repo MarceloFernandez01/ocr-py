@@ -65,7 +65,7 @@ class PluginsView(QWidget):
 
         self._rows: dict[str, QWidget] = {}
 
-    def set_plugins(self, loaded_plugins: list["LoadedPlugin"]) -> None:
+    def set_plugins(self, loaded_plugins: list[LoadedPlugin]) -> None:
         """Repuebla la lista completa a partir de `loaded_plugins`."""
         while self._list_layout.count():
             item = self._list_layout.takeAt(0)
@@ -79,7 +79,7 @@ class PluginsView(QWidget):
             self._list_layout.addWidget(row)
             self._rows[plugin.id] = row
 
-    def _build_row(self, plugin: "LoadedPlugin") -> QWidget:
+    def _build_row(self, plugin: LoadedPlugin) -> QWidget:
         """Construye la fila de `plugin`: nombre, versión, badge esencial,
         capacidades, descripción y estado (con el mensaje de error si aplica).
         """
@@ -113,7 +113,7 @@ class PluginsView(QWidget):
         return row
 
     @staticmethod
-    def _status_text(plugin: "LoadedPlugin") -> str:
+    def _status_text(plugin: LoadedPlugin) -> str:
         """Texto de estado de `plugin`: mensaje de error, o Activo/Deshabilitado."""
         if plugin.error is not None:
             return f"Con error: {plugin.error}"
