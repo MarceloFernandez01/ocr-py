@@ -120,8 +120,8 @@ class LiveOcrController(QObject):
     contrario, muestra el resultado del detector. Si el plugin `"tesseract"`
     no está disponible, degrada al diff de píxeles como único disparador),
     y actualiza `LiveOcrView` con cada captura/resultado. Propaga un estado
-    (Detenido/Transcribiendo/Analizando…/Pausado) a la vista y al overlay en
-    cada transición, y sincroniza el botón de traducción de ambos widgets.
+    (Detenido/Transcribiendo/Analizando…/Pausado) a la vista en cada
+    transición, y sincroniza el botón de traducción de la vista y el overlay.
     Instancia un `GlobalHotkeyManager` con vida igual a la de la app (persiste
     aunque se navegue afuera de la vista) para pausar/reanudar y cerrar el
     overlay con atajos globales de Windows, activos con o sin foco en la
@@ -180,15 +180,13 @@ class LiveOcrController(QObject):
         return self._engine == "claude" and self._live_claude_enabled
 
     def _set_status(self, status: str) -> None:
-        """Actualiza `_status` y lo propaga a la vista y, si existe, al overlay.
+        """Actualiza `_status` y lo propaga a la vista.
 
         Args:
             status: uno de "Detenido", "Transcribiendo", "Analizando…" o "Pausado".
         """
         self._status = status
         self.view.set_status(status)
-        if self._overlay is not None:
-            self._overlay.set_status(status)
 
     def activate_selection(self) -> None:
         """Crea (o recrea) el overlay en posición/tamaño default. No arranca el polling."""

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPaintEvent, QPen, QRegion
-from PySide6.QtWidgets import QLabel, QPushButton, QWidget
+from PySide6.QtWidgets import QPushButton, QWidget
 
 BORDER_WIDTH = 4
 HANDLE_SIZE = 16
@@ -20,8 +20,8 @@ class ScreenOverlay(QWidget):
     (señalizada solo con el cursor, sin dibujo) para que nunca aparezcan píxeles
     de handles en la captura de pantalla. Arrastrable desde el área central.
     La barra de control por encima del área de selección, fuera de
-    `capture_geometry()`, tiene un indicador de estado a la izquierda y los
-    botones (traducir, ▶/⏸ y ✕) a la derecha.
+    `capture_geometry()`, tiene los botones (traducir, ▶/⏸ y ✕) a la derecha.
+    El indicador de estado vive solo en `LiveOcrView`.
     No contiene lógica de negocio ni de captura: solo geometría/dibujo y señales.
     """
 
@@ -37,9 +37,6 @@ class ScreenOverlay(QWidget):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setMouseTracking(True)
-
-        self._status_label = QLabel("Detenido", self)
-        self._status_label.setObjectName("liveStatusLabel")
 
         self._close_button = QPushButton("✕", self)
         self._close_button.setFixedSize(32, 32)
@@ -102,8 +99,8 @@ class ScreenOverlay(QWidget):
         self._position_buttons()
 
     def _position_buttons(self) -> None:
-        """Ubica los botones de traducción/pausa/cierre a la derecha de la barra de
-        control y el indicador de estado a la izquierda, todos alineados al centro.
+        """Ubica los botones de traducción/pausa/cierre a la derecha de la barra
+        de control, alineados al centro.
         """
         button_y = (CONTROL_BAR_HEIGHT - self._close_button.height()) // 2
         self._close_button.move(self.width() - self._close_button.width() - BORDER_WIDTH, button_y)
@@ -115,9 +112,6 @@ class ScreenOverlay(QWidget):
             self._toggle_button.x() - self._translate_button.width() - 4,
             button_y,
         )
-        self._status_label.adjustSize()
-        label_y = (CONTROL_BAR_HEIGHT - self._status_label.height()) // 2
-        self._status_label.move(BORDER_WIDTH * 2, label_y)
 
     def set_running(self, running: bool) -> None:
         """Actualiza el ícono del botón de pausa/reanudar según si la transcripción corre."""
@@ -149,15 +143,6 @@ class ScreenOverlay(QWidget):
     def set_toggle_enabled(self, enabled: bool) -> None:
         """Habilita o deshabilita el botón de pausa/reanudar."""
         self._toggle_button.setEnabled(enabled)
-
-    def set_status(self, status: str) -> None:
-        """Actualiza el texto del indicador de estado de la barra de control.
-
-        Args:
-            status: uno de "Detenido", "Transcribiendo", "Analizando…" o "Pausado".
-        """
-        self._status_label.setText(status)
-        self._position_buttons()
 
     def set_translate_enabled(self, enabled: bool) -> None:
         """Habilita o deshabilita el botón de traducción."""
