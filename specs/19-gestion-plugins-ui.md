@@ -1,6 +1,6 @@
 # Spec 19 — Sistema de plugins: gestión y ajustes desde la UI
 
-**Estado:** Aprobado
+**Estado:** Implementado
 **Dependencias:** `specs/18-sistema-plugins-nucleo.md` (registro, manifiesto, contratos, plugins esenciales, `plugins_core/`)
 **Fecha:** 2026-08-25
 **Objetivo:** Agregar una vista "Plugins" en el sidebar para ver, activar/desactivar, configurar y recargar los plugins instalados, generalizando en el manifiesto sus ajustes (incluidos los campos obligatorios que hoy resuelven a mano Tesseract y Claude) en vez de los dos chequeos hardcodeados por id.
@@ -176,23 +176,23 @@ Esta spec cierra ambos frentes con una sola idea: cada campo de ajuste declarado
 
 ## Criterios de aceptación
 
-- [ ] La vista "Plugins" se abre desde un botón nuevo en el sidebar, junto al engranaje, y queda resaltada como las demás mientras está activa.
-- [ ] La lista muestra los tres plugins esenciales con badge "Esencial", sin interruptor de desactivar, y cualquier plugin de `plugins/` con su interruptor activo/inactivo.
-- [ ] Un plugin con `LoadedPlugin.error` no `None` muestra ese mensaje como su estado, sin romper el resto de la lista.
-- [ ] Con algún id de `ESSENTIAL_PLUGIN_IDS` faltante o fallado, el banner de instalación corrupta aparece y nombra el id; desaparece si el problema se resuelve y se recarga.
-- [ ] "Recargar plugins" está deshabilitado mientras haya una transcripción de imagen o de OCR en vivo en curso, y habilitado el resto del tiempo.
-- [ ] Presionar "Recargar plugins" hace aparecer un plugin nuevo copiado en `plugins/` tanto en la lista como en los combos de motor de `SettingsView`, sin reiniciar la app.
-- [ ] Desactivar un plugin no esencial actualiza su interruptor de inmediato, sin necesitar "Recargar plugins".
-- [ ] El acordeón de cada plugin muestra sus campos declarados en `settings` con el tipo correcto (`text`, `number`, `boolean`, `api_key` enmascarado).
-- [ ] Cambiar un campo del acordeón persiste el valor (en `config.json` o en el keyring según el tipo) sin necesitar un botón "Guardar".
-- [ ] Un `config.json` con `tesseract_path` en su ubicación vieja (top-level) se migra a `plugins.tesseract.settings.tesseract_path` al arrancar, sin intervención manual.
-- [ ] Una API key guardada bajo el username viejo del keyring (`anthropic_api_key`) se migra al esquema nuevo (`claude:api_key`) la primera vez que se resuelve, sin pedirla de nuevo al usuario.
-- [ ] Transcribir con Tesseract sin `tesseract_path` configurado dispara un diálogo pidiendo la ruta; completarlo permite transcribir, cancelarlo aborta sin transcribir.
-- [ ] Transcribir con Claude sin API key guardada dispara un diálogo con el campo oculto pidiéndola; completarlo permite transcribir, cancelarlo aborta sin transcribir.
-- [ ] Un plugin con `api_version` distinto de `2` no se importa y no aparece en la lista de "Plugins" ni en los combos de motor, igual que describía spec 18 para `api_version` distinto de `1`.
-- [ ] `model/plugin_manifest.py` y `model/plugin_registry.py` siguen sin importar PySide6.
-- [ ] Cada paso del plan deja la app ejecutable con `python main.py` sin romper flujos existentes.
-- [ ] `CLAUDE.md` queda actualizado con los módulos, vistas y el campo `settings` del manifiesto.
+- [x] La vista "Plugins" se abre desde un botón nuevo en el sidebar, junto al engranaje, y queda resaltada como las demás mientras está activa.
+- [x] La lista muestra los tres plugins esenciales con badge "Esencial", sin interruptor de desactivar, y cualquier plugin de `plugins/` con su interruptor activo/inactivo.
+- [x] Un plugin con `LoadedPlugin.error` no `None` muestra ese mensaje como su estado, sin romper el resto de la lista.
+- [x] Con algún id de `ESSENTIAL_PLUGIN_IDS` faltante o fallado, el banner de instalación corrupta aparece y nombra el id; desaparece si el problema se resuelve y se recarga.
+- [x] "Recargar plugins" está deshabilitado mientras haya una transcripción de imagen o de OCR en vivo en curso, y habilitado el resto del tiempo.
+- [x] Presionar "Recargar plugins" hace aparecer un plugin nuevo copiado en `plugins/` tanto en la lista como en los combos de motor de `SettingsView`, sin reiniciar la app.
+- [x] Desactivar un plugin no esencial actualiza su interruptor de inmediato, sin necesitar "Recargar plugins".
+- [x] El acordeón de cada plugin muestra sus campos declarados en `settings` con el tipo correcto (`text`, `number`, `boolean`, `api_key` enmascarado).
+- [x] Cambiar un campo del acordeón persiste el valor (en `config.json` o en el keyring según el tipo) sin necesitar un botón "Guardar".
+- [x] Un `config.json` con `tesseract_path` en su ubicación vieja (top-level) se migra a `plugins.tesseract.settings.tesseract_path` al arrancar, sin intervención manual.
+- [x] Una API key guardada bajo el username viejo del keyring (`anthropic_api_key`) se migra al esquema nuevo (`claude:api_key`) la primera vez que se resuelve, sin pedirla de nuevo al usuario.
+- [x] Transcribir con Tesseract sin `tesseract_path` configurado dispara un diálogo pidiendo la ruta; completarlo permite transcribir, cancelarlo aborta sin transcribir.
+- [x] Transcribir con Claude sin API key guardada dispara un diálogo con el campo oculto pidiéndola; completarlo permite transcribir, cancelarlo aborta sin transcribir.
+- [x] Un plugin con `api_version` distinto de `2` no se importa y no aparece en la lista de "Plugins" ni en los combos de motor, igual que describía spec 18 para `api_version` distinto de `1`.
+- [x] `model/plugin_manifest.py` y `model/plugin_registry.py` siguen sin importar PySide6.
+- [x] Cada paso del plan deja la app ejecutable con `python main.py` sin romper flujos existentes.
+- [x] `CLAUDE.md` queda actualizado con los módulos, vistas y el campo `settings` del manifiesto.
 
 ## Decisiones
 
