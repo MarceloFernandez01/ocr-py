@@ -11,10 +11,19 @@ import importlib.util
 import json
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from model.config_model import load_config
-from model.plugin_manifest import CAPABILITY_FUNCTIONS, parse_manifest
+import keyring
+
+from model.config_model import (
+    KEYRING_SERVICE,
+    KEYRING_USERNAME,
+    load_config,
+    plugin_keyring_username,
+    save_plugin_enabled,
+    save_plugin_setting_field,
+)
+from model.plugin_manifest import CAPABILITY_FUNCTIONS, SettingField, parse_manifest
 
 if getattr(sys, "frozen", False):
     _BASE_DIR = os.path.dirname(sys.executable)
@@ -49,6 +58,7 @@ class LoadedPlugin:
     error: str | None
     enabled: bool
     essential: bool
+    settings: list[SettingField] = field(default_factory=list)
 
 
 class PluginError(Exception):
@@ -158,6 +168,7 @@ def _load_plugin_folder(base_dir: str, folder_name: str, essential: bool, plugin
             error=None,
             enabled=enabled,
             essential=essential,
+            settings=list(manifest.settings),
         )
     except Exception as exc:
         return LoadedPlugin(
@@ -296,6 +307,93 @@ def can_disable(plugin_id: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _find_setting_field(plugin_id: str, field_key: str) -> SettingField | None:
+    """El `SettingField` con `field_key` en el manifiesto de `plugin_id`, o `None`."""
+    plugin = next((p for p in get_plugins() if p.id == plugin_id), None)
+    if plugin is None:
+        return None
+    return next((setting for setting in plugin.settings if setting.key == field_key), None)
+
+
+def resolve_setting_value(plugin_id: str, field_key: str) -> object:
+    """Resuelve el valor actual del campo `field_key` del plugin `plugin_id`.
+
+    Si el campo es de tipo `"api_key"`, lee del keyring del SO bajo el
+    username nuevo (`plugin_keyring_username`); si no hay valor guardado ahí
+    y se trata de `claude:api_key`, revisa el username legacy
+    (`KEYRING_USERNAME`) y, si lo encuentra, lo migra a la ubicación nueva
+    (guarda ahí, borra la vieja) antes de devolverlo. Para cualquier otro
+    tipo, lee `config["plugins"][plugin_id]["settings"]`, con el `default`
+    declarado en el manifiesto como valor de respaldo.
+    """
+    field_def = _find_setting_field(plugin_id, field_key)
+    default = field_def.default if field_def is not None else None
+
+    if field_def is not None and field_def.type == "api_key":
+        username = plugin_keyring_username(plugin_id, field_key)
+        value = keyring.get_password(KEYRING_SERVICE, username)
+        if value is None and plugin_id == "claude" and field_key == "api_key":
+            legacy_value = keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
+            if legacy_value is not None:
+                keyring.set_password(KEYRING_SERVICE, username, legacy_value)
+                keyring.delete_password(KEYRING_SERVICE, KEYRING_USERNAME)
+                value = legacy_value
+        return value if value is not None else default
+
+    plugin_settings = _plugin_settings(plugin_id)
+    return plugin_settings.get(field_key, default)
+
+
+def save_setting_value(plugin_id: str, field_key: str, value: object) -> None:
+    """Persiste el valor nuevo del campo `field_key` del plugin `plugin_id`.
+
+    Mismo despacho que `resolve_setting_value`: `api_key` va al keyring bajo
+    el username nuevo; el resto llama a `save_plugin_setting_field`.
+    """
+    field_def = _find_setting_field(plugin_id, field_key)
+
+    if field_def is not None and field_def.type == "api_key":
+        keyring.set_password(KEYRING_SERVICE, plugin_keyring_username(plugin_id, field_key), value)
+        return
+
+    save_plugin_setting_field(plugin_id, field_key, value)
+
+
+def missing_required_settings(plugin_id: str) -> list[SettingField]:
+    """`SettingField` requeridos de `plugin_id` cuyo valor resuelto está vacío (`None` o `""`)."""
+    plugin = next((p for p in get_plugins() if p.id == plugin_id), None)
+    if plugin is None:
+        return []
+
+    missing = []
+    for setting in plugin.settings:
+        if not setting.required:
+            continue
+        value = resolve_setting_value(plugin_id, setting.key)
+        if value is None or value == "":
+            missing.append(setting)
+    return missing
+
+
+def set_enabled(plugin_id: str, enabled: bool) -> None:
+    """Persiste si `plugin_id` está habilitado y actualiza el cache en memoria.
+
+    No reimporta el módulo del plugin: solo actualiza `enabled` en el
+    `LoadedPlugin` cacheado, para que `list_providers`/la vista reflejen el
+    cambio sin necesitar `reload_plugins()`.
+    """
+    save_plugin_enabled(plugin_id, enabled)
+    for plugin in get_plugins():
+        if plugin.id == plugin_id:
+            plugin.enabled = enabled
+            break
+
+
+def _resolved_settings(plugin: LoadedPlugin) -> dict:
+    """Diccionario `{field_key: valor}` resolviendo cada campo declarado por `plugin`."""
+    return {setting.key: resolve_setting_value(plugin.id, setting.key) for setting in plugin.settings}
+
+
 def run_ocr(plugin_id: str, image, language_code: str) -> str:
     """Transcribe `image` con el plugin de OCR `plugin_id`.
 
@@ -308,7 +406,7 @@ def run_ocr(plugin_id: str, image, language_code: str) -> str:
         raise PluginError(plugin_id, RuntimeError("no está disponible (deshabilitado, con error o inexistente)."))
 
     context = PluginContext(plugin_id)
-    settings = _plugin_settings(plugin_id)
+    settings = _resolved_settings(provider)
     try:
         return provider.module.transcribe(image, language_code, settings, context)
     except Exception as exc:
@@ -325,7 +423,7 @@ def run_translation(plugin_id: str, text: str, source_lang: str, target_lang: st
         raise PluginError(plugin_id, RuntimeError("no está disponible (deshabilitado, con error o inexistente)."))
 
     context = PluginContext(plugin_id)
-    settings = _plugin_settings(plugin_id)
+    settings = _resolved_settings(provider)
     try:
         return provider.module.translate(text, source_lang, target_lang, settings, context)
     except Exception as exc:

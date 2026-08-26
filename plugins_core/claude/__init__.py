@@ -5,12 +5,10 @@ la lógica de esas specs no se mueve ni se reescribe. Ignora `context.preprocess
 Claude no tiene una métrica de confianza propia para elegir entre variantes.
 """
 
-import keyring
 from PIL import Image
 
 from model.claude_ocr_model import transcribe_image_claude
 from model.claude_usage_model import register_call
-from model.config_model import KEYRING_SERVICE, KEYRING_USERNAME
 
 
 def _translate_error(error: Exception) -> Exception:
@@ -46,15 +44,15 @@ def transcribe(image: Image.Image, language_code: str, settings: dict, context) 
     Args:
         image: imagen ya cargada en memoria a transcribir.
         language_code: código de idioma (`spa`, `eng` o `spa+eng`).
-        settings: ajustes del plugin; `settings["api_key"]` tiene prioridad
-            sobre la API key guardada en el keyring del sistema operativo.
+        settings: ajustes del plugin ya resueltos por el registro;
+            `settings["api_key"]` viene del keyring del sistema operativo.
         context: `PluginContext` del registro; no se usa (ver docstring del módulo).
 
     Las excepciones del SDK `anthropic` se traducen a un mensaje legible en
     español antes de propagarse; el registro de plugins las envuelve en
     `PluginError` nombrando este plugin.
     """
-    api_key = settings.get("api_key") or keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
+    api_key = settings.get("api_key")
 
     try:
         text, input_tokens, output_tokens = transcribe_image_claude(image, language_code, api_key)

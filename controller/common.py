@@ -5,7 +5,7 @@ import time
 
 from PySide6.QtWidgets import QFileDialog, QWidget
 
-from model.config_model import save_tesseract_path
+from model.plugin_registry import save_setting_value
 
 COUNTER_INTERVAL_MS = 200
 
@@ -26,7 +26,7 @@ def prompt_tesseract_path(parent: QWidget) -> str | None:
     if not path or not os.path.exists(path):
         return None
 
-    save_tesseract_path(path)
+    save_setting_value("tesseract", "tesseract_path", path)
     return path
 
 

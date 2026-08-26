@@ -44,19 +44,29 @@ def load_config() -> dict:
     config.setdefault("hotkey_close", "Ctrl+Shift+Q")
     config.setdefault("translation_engine", "argos")
     config.setdefault("plugins", {})
+
+    if _migrate_legacy_tesseract_path(config):
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+
     return config
 
 
-def save_tesseract_path(path: str) -> None:
-    """Guarda la ruta del ejecutable de Tesseract en config.json.
+def _migrate_legacy_tesseract_path(config: dict) -> bool:
+    """Mueve la clave legacy top-level `tesseract_path` a
+    `plugins.tesseract.settings.tesseract_path`, si existe.
 
-    Args:
-        path: ruta absoluta al ejecutable tesseract.exe.
+    Devuelve True si se realizó la migración, para que `load_config()` sepa
+    si debe reescribir config.json.
     """
-    config = load_config()
-    config["tesseract_path"] = path
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2)
+    if "tesseract_path" not in config:
+        return False
+    path = config.pop("tesseract_path")
+    plugins = config.setdefault("plugins", {})
+    entry = plugins.setdefault("tesseract", {"enabled": True, "settings": {}})
+    entry.setdefault("settings", {})
+    entry["settings"]["tesseract_path"] = path
+    return True
 
 
 def save_theme(theme: str) -> None:
@@ -234,3 +244,29 @@ def save_plugin_settings(plugin_id: str, settings: dict) -> None:
     entry["settings"] = settings
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
+
+
+def save_plugin_setting_field(plugin_id: str, key: str, value: object) -> None:
+    """Persiste un único campo de ajuste del plugin `plugin_id` en config.json.
+
+    Preserva el resto de campos de `settings` y el valor de `enabled`.
+
+    Args:
+        plugin_id: id del plugin, tal como figura en su `plugin.json`.
+        key: clave del campo dentro de `settings` (el `key` del `SettingField`).
+        value: valor nuevo para ese campo.
+    """
+    config = load_config()
+    plugins = config.setdefault("plugins", {})
+    entry = plugins.setdefault(plugin_id, {"enabled": True, "settings": {}})
+    entry.setdefault("settings", {})
+    entry["settings"][key] = value
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def plugin_keyring_username(plugin_id: str, field_key: str) -> str:
+    """Username bajo el que se guarda en el keyring del SO un campo `api_key`
+    de un plugin, con el formato `"<plugin_id>:<field_key>"`.
+    """
+    return f"{plugin_id}:{field_key}"
