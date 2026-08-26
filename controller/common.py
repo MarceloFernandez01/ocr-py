@@ -1,11 +1,10 @@
 """Utilidades compartidas entre `OcrController` y `LiveOcrController`."""
 
-import os
 import time
 
-from PySide6.QtWidgets import QFileDialog, QWidget
+from PySide6.QtWidgets import QInputDialog, QLineEdit, QWidget
 
-from model.plugin_registry import save_setting_value
+from model.plugin_registry import missing_required_settings, save_setting_value
 
 COUNTER_INTERVAL_MS = 200
 
@@ -16,18 +15,26 @@ LANGUAGE_MAP = {
 }
 
 
-def prompt_tesseract_path(parent: QWidget) -> str | None:
-    """Pide al usuario la ruta del ejecutable de Tesseract y la persiste si es válida."""
-    path, _ = QFileDialog.getOpenFileName(
-        parent,
-        "Ubicar tesseract.exe",
-        filter="Ejecutables (*.exe)",
-    )
-    if not path or not os.path.exists(path):
-        return None
+def prompt_missing_settings(parent: QWidget, plugin_id: str) -> bool:
+    """Pide, por cada ajuste obligatorio faltante de `plugin_id`, su valor vía
+    un diálogo genérico (`QInputDialog.getText`, oculto para campos `api_key`)
+    y lo persiste con `save_setting_value`.
 
-    save_setting_value("tesseract", "tesseract_path", path)
-    return path
+    Devuelve False sin persistir nada si el usuario cancela o deja vacío
+    cualquiera de los diálogos; True si todos los ajustes obligatorios ya
+    estaban resueltos o se completaron.
+    """
+    for field in missing_required_settings(plugin_id):
+        value, ok = QInputDialog.getText(
+            parent,
+            field.label,
+            field.label,
+            echo=QLineEdit.Password if field.type == "api_key" else QLineEdit.Normal,
+        )
+        if not ok or not value:
+            return False
+        save_setting_value(plugin_id, field.key, value)
+    return True
 
 
 def processing_label(start: float) -> str:

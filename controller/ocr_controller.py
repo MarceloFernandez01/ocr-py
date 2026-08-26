@@ -3,7 +3,6 @@
 import time
 from typing import TYPE_CHECKING
 
-import keyring
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from PySide6.QtCore import Qt, QEvent, QObject, QPointF, QRect, QRectF, QRunnable, QThreadPool, QTimer, Signal
@@ -14,11 +13,10 @@ from controller.common import (
     COUNTER_INTERVAL_MS,
     LANGUAGE_MAP,
     processing_label,
-    prompt_tesseract_path,
+    prompt_missing_settings,
 )
-from model.config_model import KEYRING_SERVICE, KEYRING_USERNAME, load_config
+from model.config_model import load_config
 from model.plugin_registry import PluginError, run_ocr
-from model.tesseract_locator import resolve_tesseract_path
 from view.ocr_view import OcrView
 
 if TYPE_CHECKING:
@@ -392,10 +390,9 @@ class OcrController(QObject):
     def on_transcribe(self) -> None:
         """Transcribe la imagen cargada usando el idioma y el motor seleccionados.
 
-        Conserva los chequeos interactivos por id de los dos motores nativos
-        (pedir la ruta de Tesseract, avisar si falta la API key de Anthropic):
-        ambos necesitan un diálogo de la vista antes de transcribir, algo que
-        el registro de plugins no puede resolver por sí solo en esta spec.
+        Antes de arrancar, resuelve los ajustes obligatorios que le falten al
+        plugin de OCR seleccionado (`prompt_missing_settings`); si el usuario
+        cancela algún diálogo, aborta sin transcribir.
         """
         if self.state.transcription_in_progress:
             return
@@ -404,21 +401,8 @@ class OcrController(QObject):
         language_code = LANGUAGE_MAP[self.state.selected_language]
         engine = load_config().get("engine", "tesseract")
 
-        if engine == "claude":
-            api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
-            if not api_key:
-                QMessageBox.critical(
-                    self.view,
-                    "Falta la API key",
-                    "No hay una API key de Anthropic guardada. Configúrela desde Configuración.",
-                )
-                return
-        elif engine == "tesseract":
-            tesseract_path = resolve_tesseract_path()
-            if tesseract_path is None:
-                tesseract_path = prompt_tesseract_path(self.view)
-                if tesseract_path is None:
-                    return
+        if not prompt_missing_settings(self.view, engine):
+            return
 
         self._start_transcription(language_code, engine)
 

@@ -3,7 +3,6 @@
 import time
 from typing import TYPE_CHECKING
 
-import keyring
 import numpy as np
 from PIL import Image
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Qt, Signal
@@ -14,13 +13,12 @@ from controller.common import (
     COUNTER_INTERVAL_MS,
     LANGUAGE_MAP,
     processing_label,
-    prompt_tesseract_path,
+    prompt_missing_settings,
 )
 from controller.global_hotkeys import HOTKEY_CLOSE_ID, HOTKEY_TOGGLE_ID, GlobalHotkeyManager
-from model.config_model import KEYRING_SERVICE, KEYRING_USERNAME, load_config
+from model.config_model import load_config
 from model.image_diff import has_changed
 from model.plugin_registry import PluginError, get_provider, run_ocr, run_translation
-from model.tesseract_locator import resolve_tesseract_path
 from model.text_diff import has_text_changed
 from view.live_ocr_view import LiveOcrView
 from view.screen_overlay import ScreenOverlay
@@ -239,11 +237,8 @@ class LiveOcrController(QObject):
     def toggle_transcription(self) -> None:
         """Arranca o detiene el polling de transcripción según el estado actual del `QTimer`."""
         if self._timer is None:
-            tesseract_path = resolve_tesseract_path()
-            if tesseract_path is None:
-                tesseract_path = prompt_tesseract_path(self.view)
-                if tesseract_path is None:
-                    return
+            if not prompt_missing_settings(self.view, "tesseract"):
+                return
 
             config = load_config()
             self._text_similarity_threshold = config.get("text_similarity_threshold", 90)
@@ -253,15 +248,8 @@ class LiveOcrController(QObject):
             self._claude_cooldown_seconds = config.get("claude_cooldown_seconds", 10)
             self._translation_engine = config.get("translation_engine", "argos")
 
-            if self._use_claude_live():
-                api_key = keyring.get_password(KEYRING_SERVICE, KEYRING_USERNAME)
-                if not api_key:
-                    QMessageBox.critical(
-                        self.view,
-                        "Falta la API key",
-                        "No hay una API key de Anthropic guardada. Configúrela desde Configuración.",
-                    )
-                    return
+            if self._use_claude_live() and not prompt_missing_settings(self.view, "claude"):
+                return
 
             self._last_claude_call = None
             self._pending_capture = None
