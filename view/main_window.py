@@ -111,10 +111,12 @@ class MainWindow(QMainWindow):
         self.sidebar_view.plugins_selected.connect(self._show_plugins_view)
 
         from controller.live_ocr_controller import LiveOcrController
+        from controller.plugins_controller import PluginsController
         from controller.settings_controller import SettingsController
 
         self.settings_controller = SettingsController(self.settings_view, self)
         self.live_ocr_controller = LiveOcrController(self.live_ocr_view, self)
+        self.plugins_controller = PluginsController(self.plugins_view, self)
 
         config = load_config()
         self.apply_theme(config["theme"])

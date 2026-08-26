@@ -430,6 +430,33 @@ class SettingsView(QWidget):
         self.claude_cooldown_container.setVisible(is_claude)
         self.claude_budget_container.setVisible(is_claude)
 
+    def refresh_engine_combos(self) -> None:
+        """Repuebla `engine_combobox` y `translation_engine_combobox` desde el
+        registro de plugins (tras "Recargar plugins" en la vista Plugins).
+
+        Preserva la selección vigente si el plugin sigue disponible; si no,
+        cae al primer proveedor de la lista. No emite `engine_changed` ni
+        `translation_engine_changed`.
+        """
+        current_engine = self.engine_combobox.currentData()
+        self.engine_combobox.blockSignals(True)
+        self.engine_combobox.clear()
+        for plugin in list_providers("ocr"):
+            self.engine_combobox.addItem(plugin.name, plugin.id)
+        index = self.engine_combobox.findData(current_engine)
+        self.engine_combobox.setCurrentIndex(index if index != -1 else 0)
+        self.engine_combobox.blockSignals(False)
+        self._update_engine_visibility(self.engine_combobox.currentData())
+
+        current_translation_engine = self.translation_engine_combobox.currentData()
+        self.translation_engine_combobox.blockSignals(True)
+        self.translation_engine_combobox.clear()
+        for plugin in list_providers("translation"):
+            self.translation_engine_combobox.addItem(plugin.name, plugin.id)
+        index = self.translation_engine_combobox.findData(current_translation_engine)
+        self.translation_engine_combobox.setCurrentIndex(index if index != -1 else 0)
+        self.translation_engine_combobox.blockSignals(False)
+
     def set_engine_silent(self, engine: str) -> None:
         """Sincroniza el combobox de motor con el id `engine` sin emitir `engine_changed`
         (evita loops al llamarse desde el controller, ej. al revertir una selección).
